@@ -8,22 +8,53 @@
     <style>
         body { margin: 0; overflow: hidden; background: #00050a; color: #fff; font-family: 'Segoe UI', sans-serif; }
         canvas { display: block; }
-        #ui-panel { 
+        
+        #ui-container { 
             position: absolute; top: 20px; left: 20px; z-index: 10; 
+            pointer-events: none;
+        }
+        
+        .glass-panel {
             background: rgba(0, 20, 40, 0.9); padding: 20px; 
             border: 2px solid #00aaff; border-radius: 12px; pointer-events: auto;
-            box-shadow: 0 0 20px rgba(0, 170, 255, 0.4); min-width: 260px;
+            box-shadow: 0 0 20px rgba(0, 170, 255, 0.4);
         }
-        .setup-group { margin-bottom: 15px; }
-        input { padding: 8px; background: #001a33; color: #fff; border: 1px solid #00aaff; border-radius: 4px; width: 140px; font-size: 1.1em; text-align: center; }
+
+        /* 대기실 및 채팅 스타일 */
+        #setup-view { min-width: 320px; display: flex; flex-direction: column; gap: 15px; }
+        .setup-group { margin-bottom: 5px; }
+        input { padding: 10px; background: #001a33; color: #fff; border: 1px solid #00aaff; border-radius: 4px; width: calc(100% - 22px); font-size: 1.1em; text-align: center; }
+        
+        #lobby-chat {
+            height: 150px; background: rgba(0, 0, 0, 0.4); border: 1px solid #333;
+            border-radius: 6px; overflow-y: auto; padding: 10px; font-size: 0.9em;
+            display: flex; flex-direction: column; gap: 4px; margin-top: 10px;
+        }
+        .chat-msg { border-bottom: 1px solid rgba(0, 170, 255, 0.1); padding-bottom: 2px; }
+        .chat-msg .sender { color: #00aaff; font-weight: bold; margin-right: 5px; }
+
+        /* 게임 UI 스타일 */
+        #menu-toggle-btn {
+            background: #00aaff; color: #fff; border: none; padding: 10px 20px;
+            border-radius: 8px; font-weight: bold; cursor: pointer; pointer-events: auto;
+            box-shadow: 0 4px 10px rgba(0,0,0,0.3); margin-bottom: 10px;
+        }
+
+        #upgrade-menu {
+            display: none; width: 280px; margin-top: 10px;
+        }
+
         button { 
-            padding: 8px 15px; cursor: pointer; background: #00aaff; color: #fff; 
+            padding: 10px 12px; cursor: pointer; background: #00aaff; color: #fff; 
             border: none; border-radius: 4px; font-weight: bold; transition: 0.3s;
+            margin: 4px 0;
         }
         button:hover { background: #00d4ff; box-shadow: 0 0 10px #00d4ff; }
-        button:disabled { background: #444; cursor: not-allowed; }
-        #upgrade-section { margin-top: 15px; border-top: 1px solid #444; padding-top: 15px; }
+        button:disabled { background: #444; cursor: not-allowed; opacity: 0.6; }
+        
         .stat-label { font-size: 0.85em; color: #00d4ff; margin-bottom: 5px; }
+        .menu-title { font-weight: bold; font-size: 0.9em; margin: 12px 0 6px 0; color: #ffaa00; text-transform: uppercase; border-bottom: 1px solid #444; }
+        
         #game-over-screen {
             position: absolute; top: 50%; left: 50%; transform: translate(-50%, -50%);
             background: rgba(150, 0, 0, 0.95); padding: 50px; border-radius: 20px;
@@ -32,31 +63,57 @@
         }
         .hp-bar-bg { width: 100%; height: 10px; background: #222; border-radius: 5px; margin-top: 4px; overflow: hidden; }
         .hp-bar-fill { height: 100%; transition: width 0.3s ease; }
+        
+        .nuke-btn { background: #ff4400 !important; }
+        .nuke-btn:hover { background: #ff6600 !important; box-shadow: 0 0 15px #ff4400 !important; }
     </style>
 </head>
 <body>
 
-<div id="ui-panel">
-    <div id="setup-view">
-        <h2 style="margin:0 0 15px 0; color:#00aaff; letter-spacing: 2px;">FIGHTER ACE</h2>
-        <div class="setup-group">
-            <div class="stat-label">내 접속 코드 (공유용)</div>
-            <strong id="my-id" style="font-size: 2em; color: #fff; text-shadow: 0 0 10px #0af;">연결 중...</strong>
+<div id="ui-container">
+    <!-- 초기 접속 뷰 및 대기실 채팅 -->
+    <div id="setup-view" class="glass-panel">
+        <h2 style="margin:0; color:#00aaff; letter-spacing: 2px; text-align: center;">FIGHTER ACE</h2>
+        
+        <div class="setup-group" style="text-align: center;">
+            <div class="stat-label">내 접속 코드</div>
+            <strong id="my-id" style="font-size: 2.2em; color: #fff; text-shadow: 0 0 10px #0af;">연결 중...</strong>
         </div>
+
         <div class="setup-group">
-            <input type="text" id="peer-id" placeholder="상대 코드 4자리" maxlength="4">
-            <button onclick="connectToPeer()">전투 참가</button>
+            <input type="text" id="peer-id" placeholder="상대 코드 4자리 입력" maxlength="4">
+            <button style="width:100%" onclick="connectToPeer()">전투 참가 (Host 연결)</button>
         </div>
-        <div style="font-size: 0.8em; color: #888;">* 코드를 친구에게 알려주거나 친구 코드를 입력하세요.</div>
+
+        <div id="lobby-section">
+            <div class="stat-label">대기실 실시간 채팅</div>
+            <div id="lobby-chat">
+                <div class="chat-msg" style="color:#888;">네트워크에 연결되면 채팅이 가능합니다.</div>
+            </div>
+            <div style="display:flex; gap:5px; margin-top:5px;">
+                <input type="text" id="chat-input" placeholder="메시지 입력..." style="font-size: 0.9em; flex:1;" onkeydown="if(event.keyCode==13) sendChatMessage()">
+                <button onclick="sendChatMessage()" style="margin:0; padding:0 15px;">전송</button>
+            </div>
+        </div>
     </div>
 
-    <div id="game-stats" style="display:none;">
-        <div id="player-health-info"></div>
-        <div id="upgrade-section">
-            <div class="stat-label">업그레이드 포인트: <span id="u-points" style="color:#fff; font-weight:bold;">0</span></div>
-            <button id="btn-upgrade-fire" style="width:100%" onclick="sendUpgrade()">연사력 강화 (Cost 500)</button>
+    <!-- 게임 중 UI -->
+    <div id="game-ui" style="display:none;">
+        <button id="menu-toggle-btn" onclick="toggleMenu()">업그레이드 메뉴 (TAB)</button>
+        
+        <div id="upgrade-menu" class="glass-panel">
+            <div id="player-health-info"></div>
+            
+            <div class="stat-label" style="margin-top:10px;">보유 포인트: <span id="u-points" style="color:#fff; font-weight:bold; font-size:1.2em;">0</span></div>
+            
+            <div class="menu-title">기체 강화</div>
+            <button id="btn-upgrade-fire" style="width:100%" onclick="sendUpgrade('fireRate')">연사력 강화 (500)</button>
+            <button id="btn-upgrade-hp" style="width:100%" onclick="sendUpgrade('maxHp')">내구도 수리 (300)</button>
+            
+            <div class="menu-title">특수 무기</div>
+            <button id="btn-nuke" class="nuke-btn" style="width:100%" onclick="sendUpgrade('nuke')">☢ 핵미사일 구매 (1000)</button>
+            <div id="nuke-count-label" style="font-size:0.75em; text-align:center; margin-top:4px; color:#ffaa00;">보유 중인 핵: 0 (Q키 사용)</div>
         </div>
-        <div id="connection-status" style="margin-top:10px; font-size:0.8em; color:#0f0;">통신 상태 양호</div>
     </div>
 </div>
 
@@ -74,54 +131,59 @@
     canvas.width = window.innerWidth;
     canvas.height = window.innerHeight;
 
-    // 게임 상수
-    const PLAYER_MAX_HP = 10;
-    const ENEMY_MAX_HP = 2;
-    const UPGRADE_COST = 500;
+    const INITIAL_PLAYER_MAX_HP = 10;
+    const INITIAL_ENEMY_MAX_HP = 2;
+    const COSTS = { fireRate: 500, maxHp: 300, nuke: 1000 };
 
-    let peer;
-    let conn;
+    let peer, conn, myShortId;
     let isHost = true;
-    let myShortId = null;
     let isGameOver = false;
+    let isMenuOpen = false;
+    let nukeEffectActive = 0;
 
-    // 게임 상태 객체
     let gameState = {
         players: {},
         enemies: [],
         bullets: [],
-        particles: [],
-        isGameOver: false
+        difficulty: 1,
+        isGameOver: false,
+        startTime: Date.now()
     };
 
     const keys = {};
-    window.addEventListener('keydown', e => keys[e.code] = true);
+    window.addEventListener('keydown', e => {
+        // 채팅 입력 중에는 게임 조작 방지
+        if (document.activeElement.id === 'chat-input') return;
+
+        keys[e.code] = true;
+        if (e.code === 'Tab') { e.preventDefault(); toggleMenu(); }
+        if (e.code === 'KeyQ' && !isGameOver) {
+            const p = gameState.players[myShortId];
+            if (p && p.nukes > 0 && nukeEffectActive <= 0) sendUpgrade('useNuke');
+        }
+    });
     window.addEventListener('keyup', e => keys[e.code] = false);
 
-    // --- PeerJS 설정 (짧은 ID 생성 시도) ---
-    function initNetwork() {
-        const randomId = Math.floor(1000 + Math.random() * 9000).toString(); // 4자리 숫자 생성
-        peer = new Peer(randomId);
+    function toggleMenu() {
+        isMenuOpen = !isMenuOpen;
+        document.getElementById('upgrade-menu').style.display = isMenuOpen ? 'block' : 'none';
+        document.getElementById('menu-toggle-btn').innerText = isMenuOpen ? '메뉴 닫기 (TAB)' : '업그레이드 메뉴 (TAB)';
+    }
 
+    function initNetwork() {
+        const randomId = Math.floor(1000 + Math.random() * 9000).toString();
+        peer = new Peer(randomId);
         peer.on('open', id => {
             myShortId = id;
             document.getElementById('my-id').innerText = id;
+            addChatMessage("시스템", `서버에 연결되었습니다. 내 코드: ${id}`);
             initPlayer(id, true);
         });
-
-        peer.on('error', err => {
-            if (err.type === 'unavailable-id') {
-                // 이미 사용 중인 ID면 무작위로 다시 시도
-                peer = new Peer(); 
-            }
-        });
-
+        peer.on('error', err => { if (err.type === 'unavailable-id') peer = new Peer(); });
         peer.on('connection', c => {
-            conn = c;
-            isHost = true;
+            conn = c; isHost = true;
             setupSocket();
-            spawnInitialEnemies();
-            startGameUI();
+            addChatMessage("알림", "새로운 플레이어가 입장했습니다.");
         });
     }
 
@@ -129,70 +191,122 @@
         const targetId = document.getElementById('peer-id').value;
         if (!targetId) return;
         conn = peer.connect(targetId);
-        isHost = false;
+        isHost = false; 
         setupSocket();
-        startGameUI();
     }
 
     function setupSocket() {
         conn.on('open', () => {
+            startGameUI();
             if (!isHost) conn.send({ type: 'JOIN', id: myShortId });
             requestAnimationFrame(gameLoop);
         });
-
         conn.on('data', data => {
+            if (data.type === 'CHAT') {
+                addChatMessage(data.sender, data.msg);
+                return;
+            }
+
             if (isHost) {
                 if (data.type === 'JOIN') initPlayer(data.id, false);
                 else if (data.type === 'INPUT') {
                     if (gameState.players[data.id]) gameState.players[data.id].keys = data.keys;
-                } else if (data.type === 'UPGRADE') applyUpgrade(data.id);
+                } else if (data.type === 'UPGRADE') applyUpgrade(data.id, data.stat);
             } else {
-                gameState = data;
-                if (gameState.isGameOver) showGameOver();
+                if (data.type === 'NUKE_EFFECT') triggerNukeLocal();
+                else {
+                    gameState = data;
+                    if (gameState.isGameOver) showGameOver();
+                }
             }
         });
     }
 
+    // 채팅 관련 함수
+    function sendChatMessage() {
+        const input = document.getElementById('chat-input');
+        const msg = input.value.trim();
+        if (!msg) return;
+
+        addChatMessage("나", msg);
+        if (conn && conn.open) {
+            conn.send({ type: 'CHAT', sender: myShortId, msg: msg });
+        }
+        input.value = "";
+    }
+
+    function addChatMessage(sender, msg) {
+        const chatBox = document.getElementById('lobby-chat');
+        const msgDiv = document.createElement('div');
+        msgDiv.className = 'chat-msg';
+        msgDiv.innerHTML = `<span class="sender">${sender}:</span> <span>${msg}</span>`;
+        chatBox.appendChild(msgDiv);
+        chatBox.scrollTop = chatBox.scrollHeight;
+    }
+
     function initPlayer(id, hostFlag) {
         gameState.players[id] = {
-            x: 150,
-            y: canvas.height / 2 + (hostFlag ? -60 : 60),
-            hp: PLAYER_MAX_HP,
-            score: 0,
-            points: 0,
-            fireRate: 600,
-            lastFire: 0,
-            color: hostFlag ? '#00aaff' : '#00ffaa'
+            x: 150, y: canvas.height / 2 + (hostFlag ? -60 : 60),
+            hp: INITIAL_PLAYER_MAX_HP, maxHp: INITIAL_PLAYER_MAX_HP,
+            score: 0, points: 0, fireRate: 600, lastFire: 0,
+            nukes: 0, color: hostFlag ? '#00aaff' : '#00ffaa'
         };
+        if (isHost && Object.keys(gameState.players).length === 1) spawnInitialEnemies();
     }
 
     function spawnInitialEnemies() {
+        gameState.enemies = [];
         for (let i = 0; i < 6; i++) {
             gameState.enemies.push({
                 x: canvas.width + Math.random() * 800,
                 y: Math.random() * canvas.height,
-                hp: ENEMY_MAX_HP,
+                hp: INITIAL_ENEMY_MAX_HP,
+                maxHp: INITIAL_ENEMY_MAX_HP,
                 lastFire: 0
             });
         }
     }
 
-    function sendUpgrade() {
-        if (isHost) applyUpgrade(myShortId);
-        else conn.send({ type: 'UPGRADE', id: myShortId });
+    function sendUpgrade(stat) {
+        if (isHost) applyUpgrade(myShortId, stat);
+        else conn.send({ type: 'UPGRADE', id: myShortId, stat: stat });
     }
 
-    function applyUpgrade(id) {
+    function applyUpgrade(id, stat) {
         const p = gameState.players[id];
-        if (p && p.points >= UPGRADE_COST) {
-            p.fireRate = Math.max(100, p.fireRate - 100);
-            p.points -= UPGRADE_COST;
+        if (!p) return;
+
+        if (stat === 'fireRate' && p.points >= COSTS.fireRate) {
+            p.fireRate = Math.max(80, p.fireRate - 80);
+            p.points -= COSTS.fireRate;
+        } else if (stat === 'maxHp' && p.points >= COSTS.maxHp) {
+            p.hp = Math.min(p.hp + 5, p.maxHp);
+            p.points -= COSTS.maxHp;
+        } else if (stat === 'nuke' && p.points >= COSTS.nuke) {
+            p.nukes++;
+            p.points -= COSTS.nuke;
+        } else if (stat === 'useNuke' && p.nukes > 0) {
+            p.nukes--;
+            triggerNukeWorld();
         }
     }
 
+    function triggerNukeWorld() {
+        gameState.enemies.forEach(en => {
+            if (en.x < canvas.width + 500) {
+                en.x = canvas.width + 1000;
+                en.hp = INITIAL_ENEMY_MAX_HP * gameState.difficulty;
+            }
+        });
+        if (conn && conn.open) conn.send({ type: 'NUKE_EFFECT' });
+        triggerNukeLocal();
+    }
+
+    function triggerNukeLocal() { nukeEffectActive = 1.0; }
+
     function startGameUI() {
         document.getElementById('setup-view').style.display = 'none';
-        document.getElementById('game-stats').style.display = 'block';
+        document.getElementById('game-ui').style.display = 'block';
     }
 
     function showGameOver() {
@@ -200,47 +314,17 @@
         document.getElementById('game-over-screen').style.display = 'block';
     }
 
-    // --- 그래픽 드로잉 ---
     function drawShip(x, y, color, isEnemy = false) {
         ctx.save();
         ctx.translate(x, y);
         if (isEnemy) ctx.scale(-1, 1);
-
-        // 엔진 화염 효과
-        if (!isEnemy) {
-            ctx.fillStyle = (Date.now() % 200 < 100) ? '#ffaa00' : '#ff4400';
-            ctx.beginPath();
-            ctx.moveTo(-15, 0); ctx.lineTo(-25, -5); ctx.lineTo(-25, 5);
-            ctx.fill();
-        }
-
-        // 선체
-        ctx.shadowBlur = 15;
-        ctx.shadowColor = color;
-        ctx.fillStyle = color;
-        ctx.beginPath();
-        ctx.moveTo(25, 0); ctx.lineTo(-15, -12); ctx.lineTo(-10, 0); ctx.lineTo(-15, 12);
-        ctx.closePath();
-        ctx.fill();
-
-        // 날개 장식
-        ctx.strokeStyle = '#fff';
-        ctx.lineWidth = 2;
-        ctx.stroke();
-
-        // 콕핏
-        ctx.fillStyle = 'rgba(255, 255, 255, 0.8)';
-        ctx.beginPath();
-        ctx.ellipse(5, 0, 7, 3, 0, 0, Math.PI * 2);
-        ctx.fill();
-
+        ctx.shadowBlur = 15; ctx.shadowColor = color; ctx.fillStyle = color;
+        ctx.beginPath(); ctx.moveTo(25, 0); ctx.lineTo(-15, -12); ctx.lineTo(-10, 0); ctx.lineTo(-15, 12); ctx.closePath(); ctx.fill();
         ctx.restore();
     }
 
-    // --- 게임 로직 업데이트 ---
     function update() {
         if (isGameOver) return;
-
         if (!isHost) {
             conn.send({ type: 'INPUT', id: myShortId, keys: keys });
             updateUI();
@@ -248,87 +332,63 @@
         }
 
         const now = Date.now();
-        let aliveCount = 0;
+        gameState.difficulty = 1 + (now - gameState.startTime) / 60000 * 0.2;
 
-        // 플레이어 처리
+        let aliveCount = 0;
         for (let id in gameState.players) {
             const p = gameState.players[id];
             if (p.hp <= 0) continue;
             aliveCount++;
-
             const pKeys = (id === myShortId) ? keys : p.keys;
             if (pKeys) {
-                if (pKeys['ArrowUp']) p.y -= 7;
-                if (pKeys['ArrowDown']) p.y += 7;
-                if (pKeys['ArrowLeft']) p.x -= 7;
-                if (pKeys['ArrowRight']) p.x += 7;
+                if (pKeys['ArrowUp']) p.y -= 7; if (pKeys['ArrowDown']) p.y += 7;
+                if (pKeys['ArrowLeft']) p.x -= 7; if (pKeys['ArrowRight']) p.x += 7;
             }
-
-            // 경계 제한
             p.x = Math.max(30, Math.min(canvas.width - 30, p.x));
             p.y = Math.max(30, Math.min(canvas.height - 30, p.y));
+            if (p.hp < p.maxHp) p.hp += 0.002;
 
-            // 자연 회복
-            if (p.hp < PLAYER_MAX_HP) p.hp += 0.002;
-
-            // 자동 사격 (가장 가까운 적 조준)
             if (now - p.lastFire > p.fireRate) {
-                let target = null;
-                let minDist = 800;
+                let target = null, minDist = 1000;
                 gameState.enemies.forEach(en => {
                     let d = Math.hypot(en.x - p.x, en.y - p.y);
                     if (d < minDist) { minDist = d; target = en; }
                 });
-
                 if (target) {
                     const angle = Math.atan2(target.y - p.y, target.x - p.x);
                     gameState.bullets.push({ 
-                        x: p.x + 20, y: p.y, 
-                        vx: Math.cos(angle) * 15, vy: Math.sin(angle) * 15, 
+                        x: p.x + 20, y: p.y, vx: Math.cos(angle) * 15, vy: Math.sin(angle) * 15, 
                         owner: 'p', pId: id, color: p.color 
                     });
                     p.lastFire = now;
                 }
             }
         }
+        if (aliveCount === 0) { gameState.isGameOver = true; showGameOver(); }
 
-        if (aliveCount === 0) {
-            gameState.isGameOver = true;
-            showGameOver();
-        }
-
-        // 적군 업데이트
         gameState.enemies.forEach(en => {
-            en.x -= 3.5;
-            en.y += Math.sin(now / 800 + en.x / 100) * 2; // 지그재그 이동
-
+            en.x -= (3.5 + gameState.difficulty * 0.5);
+            en.y += Math.sin(now / 800 + en.x / 100) * 2;
             if (en.x < -100) {
-                en.x = canvas.width + 200;
+                en.x = canvas.width + Math.random() * 500;
                 en.y = Math.random() * canvas.height;
-                en.hp = ENEMY_MAX_HP;
+                en.hp = INITIAL_ENEMY_MAX_HP * gameState.difficulty;
             }
-
-            // 적 사격
-            if (now - en.lastFire > 2200 && en.x < canvas.width) {
+            if (now - en.lastFire > 2000 && en.x < canvas.width) {
                 gameState.bullets.push({ x: en.x - 20, y: en.y, vx: -8, vy: 0, owner: 'e', color: '#ff3333' });
                 en.lastFire = now;
             }
         });
 
-        // 총알 물리 및 충돌
         gameState.bullets = gameState.bullets.filter(b => {
-            b.x += b.vx;
-            b.y += b.vy;
-
+            b.x += b.vx; b.y += b.vy;
             if (b.owner === 'p') {
                 for (let en of gameState.enemies) {
-                    if (Math.hypot(b.x - en.x, b.y - en.y) < 28) {
+                    if (Math.hypot(b.x - en.x, b.y - en.y) < 30) {
                         en.hp -= 1;
                         if (en.hp <= 0) {
-                            en.x = canvas.width + 300;
-                            en.hp = ENEMY_MAX_HP;
-                            gameState.players[b.pId].score += 100;
-                            gameState.players[b.pId].points += 100;
+                            en.x = canvas.width + 500; en.hp = INITIAL_ENEMY_MAX_HP * gameState.difficulty;
+                            gameState.players[b.pId].score += 100; gameState.players[b.pId].points += 100;
                         }
                         return false;
                     }
@@ -336,13 +396,10 @@
             } else {
                 for (let id in gameState.players) {
                     const p = gameState.players[id];
-                    if (p.hp > 0 && Math.hypot(b.x - p.x, b.y - p.y) < 22) {
-                        p.hp -= 1;
-                        return false;
-                    }
+                    if (p.hp > 0 && Math.hypot(b.x - p.x, b.y - p.y) < 22) { p.hp -= 1; return false; }
                 }
             }
-            return b.x > -100 && b.x < canvas.width + 100 && b.y > -100 && b.y < canvas.height + 100;
+            return b.x > -100 && b.x < canvas.width + 100;
         });
 
         updateUI();
@@ -352,23 +409,22 @@
     function updateUI() {
         const myData = gameState.players[myShortId];
         if (!myData) return;
-
         document.getElementById('u-points').innerText = Math.floor(myData.points);
-        document.getElementById('btn-upgrade-fire').disabled = myData.points < UPGRADE_COST;
+        document.getElementById('nuke-count-label').innerText = `보유 중인 핵: ${myData.nukes} (Q키 사용)`;
+        document.getElementById('btn-upgrade-fire').disabled = myData.points < COSTS.fireRate;
+        document.getElementById('btn-upgrade-hp').disabled = myData.points < COSTS.maxHp;
+        document.getElementById('btn-nuke').disabled = myData.points < COSTS.nuke;
 
         let hpHTML = '';
         for (let id in gameState.players) {
             const p = gameState.players[id];
-            const name = (id === myShortId) ? "내 전투기" : "편대원";
-            const hpPct = (p.hp / PLAYER_MAX_HP) * 100;
+            const hpPct = (p.hp / p.maxHp) * 100;
             hpHTML += `
-                <div style="margin-bottom:12px">
+                <div style="margin-bottom:10px">
                     <div class="stat-label" style="display:flex; justify-content:space-between;">
-                        <span>${name}</span> <span>Score: ${p.score}</span>
+                        <span>${id === myShortId ? "본체" : "편대원"}</span> <span>Score: ${p.score}</span>
                     </div>
-                    <div class="hp-bar-bg">
-                        <div class="hp-bar-fill" style="width:${Math.max(0, hpPct)}%; background:${p.hp > 3 ? p.color : '#ff0000'};"></div>
-                    </div>
+                    <div class="hp-bar-bg"><div class="hp-bar-fill" style="width:${Math.max(0, hpPct)}%; background:${p.color};"></div></div>
                 </div>
             `;
         }
@@ -378,45 +434,28 @@
     function draw() {
         ctx.fillStyle = '#00050a';
         ctx.fillRect(0, 0, canvas.width, canvas.height);
-
-        // 배경 별 무리
-        ctx.fillStyle = '#fff';
-        for (let i = 0; i < 50; i++) {
-            let x = (Math.sin(i) * 10000 + Date.now() / 50) % canvas.width;
-            let y = (Math.cos(i) * 10000) % canvas.height;
-            ctx.globalAlpha = 0.3;
-            ctx.fillRect(x, y, 2, 2);
-        }
-        ctx.globalAlpha = 1.0;
-
-        // 게임 요소 그리기
         gameState.enemies.forEach(e => drawShip(e.x, e.y, '#ff4444', true));
-        for (let id in gameState.players) {
-            if (gameState.players[id].hp > 0) drawShip(gameState.players[id].x, gameState.players[id].y, gameState.players[id].color);
+        for (let id in gameState.players) if (gameState.players[id].hp > 0) drawShip(gameState.players[id].x, gameState.players[id].y, gameState.players[id].color);
+        gameState.bullets.forEach(b => { ctx.fillStyle = b.color; ctx.beginPath(); ctx.arc(b.x, b.y, 4, 0, Math.PI * 2); ctx.fill(); });
+
+        if (nukeEffectActive > 0) {
+            ctx.save();
+            ctx.fillStyle = nukeEffectActive > 0.8 ? `rgba(255,255,255,${(nukeEffectActive-0.8)*5})` : `rgba(255,100,0,${nukeEffectActive})`;
+            ctx.fillRect(0,0,canvas.width,canvas.height);
+            let radius = (1 - nukeEffectActive) * canvas.width * 1.5;
+            let grad = ctx.createRadialGradient(canvas.width/2, canvas.height/2, 0, canvas.width/2, canvas.height/2, radius);
+            grad.addColorStop(0, `rgba(255,255,200,${nukeEffectActive})`);
+            grad.addColorStop(1, 'transparent');
+            ctx.fillStyle = grad; ctx.beginPath(); ctx.arc(canvas.width/2, canvas.height/2, radius, 0, Math.PI*2); ctx.fill();
+            ctx.restore();
+            nukeEffectActive -= 0.02;
         }
-
-        gameState.bullets.forEach(b => {
-            ctx.shadowBlur = 8;
-            ctx.shadowColor = b.color;
-            ctx.fillStyle = b.color;
-            ctx.beginPath();
-            ctx.arc(b.x, b.y, 4, 0, Math.PI * 2);
-            ctx.fill();
-        });
+        ctx.fillStyle = "rgba(0, 170, 255, 0.5)"; ctx.font = "14px sans-serif";
+        ctx.fillText(`난이도: ${(gameState.difficulty * 100).toFixed(0)}%`, canvas.width - 100, 30);
     }
 
-    function gameLoop() {
-        update();
-        draw();
-        if (!isGameOver) requestAnimationFrame(gameLoop);
-    }
+    function gameLoop() { update(); draw(); if (!isGameOver) requestAnimationFrame(gameLoop); }
 
-    window.addEventListener('resize', () => {
-        canvas.width = window.innerWidth;
-        canvas.height = window.innerHeight;
-    });
-
-    // 시작
     initNetwork();
 </script>
 </body>
