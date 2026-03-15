@@ -1,0 +1,376 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>전투기 에이스: 팀 코옵 vs AI</title>
+    <script src="https://unpkg.com/peerjs@1.5.2/dist/peerjs.min.js"></script>
+    <style>
+        body { margin: 0; overflow: hidden; background: #00050a; color: #fff; font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif; }
+        canvas { display: block; }
+        #ui-panel { 
+            position: absolute; top: 20px; left: 20px; z-index: 10; 
+            background: rgba(0, 20, 40, 0.85); padding: 20px; 
+            border: 2px solid #00aaff; border-radius: 12px; pointer-events: auto;
+            box-shadow: 0 0 20px rgba(0, 170, 255, 0.3);
+            min-width: 250px;
+        }
+        .setup-group { margin-bottom: 15px; }
+        input { padding: 8px; background: #001a33; color: #fff; border: 1px solid #00aaff; border-radius: 4px; width: 180px; }
+        button { 
+            padding: 8px 15px; cursor: pointer; background: #00aaff; color: #fff; 
+            border: none; border-radius: 4px; font-weight: bold; transition: 0.3s;
+        }
+        button:hover { background: #00d4ff; box-shadow: 0 0 10px #00d4ff; }
+        button:disabled { background: #444; cursor: not-allowed; }
+        #upgrade-section { margin-top: 15px; border-top: 1px solid #444; padding-top: 10px; }
+        .stat-label { font-size: 0.85em; color: #00d4ff; margin-bottom: 5px; }
+
+        #game-over-screen {
+            position: absolute; top: 50%; left: 50%; transform: translate(-50%, -50%);
+            background: rgba(150, 0, 0, 0.9); padding: 40px; border-radius: 20px;
+            text-align: center; display: none; z-index: 100; border: 4px solid #ff0000;
+        }
+    </style>
+</head>
+<body>
+
+<div id="ui-panel">
+    <div id="setup-view">
+        <h2 style="margin-top:0; color:#00aaff;">FIGHTER ACE</h2>
+        <div class="setup-group">
+            <div class="stat-label">내 호출 부호 (ID)</div>
+            <strong id="my-id">연결 중...</strong>
+        </div>
+        <div class="setup-group">
+            <input type="text" id="peer-id" placeholder="상대방 호출 부호 입력">
+            <button onclick="connectToPeer()">출격 (연결)</button>
+        </div>
+        <div style="font-size: 0.75em; color: #aaa;">* 방장은 ID를 공유하고 대기하세요.</div>
+    </div>
+
+    <div id="game-stats" style="display:none;">
+        <div id="player-health-info"></div>
+        <div id="upgrade-section">
+            <div class="stat-label">업그레이드 포인트: <span id="u-points">0</span></div>
+            <button id="btn-upgrade-fire" onclick="sendUpgrade('fireRate')">공격 속도 강화 (P 500)</button>
+        </div>
+        <div id="connection-status" style="margin-top:10px; font-size:0.8em; color:#0f0;"></div>
+    </div>
+</div>
+
+<div id="game-over-screen">
+    <h1 style="font-size: 3em; margin: 0;">MISSION FAILED</h1>
+    <p>기체가 파괴되었습니다.</p>
+    <button onclick="location.reload()">다시 시작</button>
+</div>
+
+<canvas id="gameCanvas"></canvas>
+
+<script>
+    const canvas = document.getElementById('gameCanvas');
+    const ctx = canvas.getContext('2d');
+    canvas.width = window.innerWidth;
+    canvas.height = window.innerHeight;
+
+    // 게임 밸런스 상수
+    const PLAYER_MAX_HP = 10;
+    const ENEMY_MAX_HP = 2; 
+    const BASE_FIRE_RATE = 600;
+    const ENEMY_FIRE_RATE = 2000;
+    const UPGRADE_COST = 500;
+
+    let peer;
+    let conn;
+    let isHost = true;
+    let myId = null;
+    let isGameOver = false;
+
+    // 게임 상태
+    let gameState = {
+        players: {}, 
+        enemies: [],
+        bullets: [],
+        particles: []
+    };
+
+    const keys = {};
+    window.addEventListener('keydown', e => {
+        keys[e.code] = true;
+    });
+    window.addEventListener('keyup', e => keys[e.code] = false);
+
+    // --- PeerJS 엔진 ---
+    peer = new Peer();
+
+    peer.on('open', id => {
+        myId = id;
+        document.getElementById('my-id').innerText = id;
+        initPlayer(id, true);
+    });
+
+    peer.on('connection', c => {
+        conn = c;
+        isHost = true;
+        setupSocket();
+        spawnEnemies();
+        startGameUI();
+    });
+
+    function connectToPeer() {
+        const targetId = document.getElementById('peer-id').value;
+        if (!targetId) return;
+        conn = peer.connect(targetId);
+        isHost = false;
+        setupSocket();
+        startGameUI();
+    }
+
+    function setupSocket() {
+        conn.on('open', () => {
+            document.getElementById('connection-status').innerText = "편대 연결됨";
+            if (!isHost) conn.send({ type: 'JOIN', id: myId });
+            requestAnimationFrame(gameLoop);
+        });
+
+        conn.on('data', data => {
+            if (isHost) {
+                if (data.type === 'JOIN') {
+                    initPlayer(data.id, false);
+                } else if (data.type === 'INPUT') {
+                    if (gameState.players[data.id]) gameState.players[data.id].keys = data.keys;
+                } else if (data.type === 'UPGRADE') {
+                    applyUpgrade(data.id, data.stat);
+                }
+            } else {
+                gameState = data;
+                if (gameState.isGameOver) showGameOver();
+            }
+        });
+    }
+
+    function initPlayer(id, hostFlag) {
+        gameState.players[id] = {
+            x: 150,
+            y: canvas.height / 2 + (hostFlag ? -50 : 50),
+            hp: PLAYER_MAX_HP,
+            score: 0,
+            points: 0,
+            fireRate: BASE_FIRE_RATE,
+            lastFire: 0,
+            color: hostFlag ? '#00aaff' : '#00ffaa'
+        };
+    }
+
+    function spawnEnemies() {
+        for (let i = 0; i < 5; i++) {
+            gameState.enemies.push({
+                id: 'ai_' + i,
+                x: canvas.width + Math.random() * 500,
+                y: Math.random() * canvas.height,
+                hp: ENEMY_MAX_HP,
+                lastFire: 0,
+                targetY: Math.random() * canvas.height
+            });
+        }
+    }
+
+    function sendUpgrade(stat) {
+        if (isHost) applyUpgrade(myId, stat);
+        else conn.send({ type: 'UPGRADE', id: myId, stat: stat });
+    }
+
+    function applyUpgrade(id, stat) {
+        const p = gameState.players[id];
+        if (p && p.points >= UPGRADE_COST) {
+            if (stat === 'fireRate') {
+                p.fireRate = Math.max(150, p.fireRate - 80);
+                p.points -= UPGRADE_COST;
+            }
+        }
+    }
+
+    function startGameUI() {
+        document.getElementById('setup-view').style.display = 'none';
+        document.getElementById('game-stats').style.display = 'block';
+    }
+
+    function showGameOver() {
+        isGameOver = true;
+        document.getElementById('game-over-screen').style.display = 'block';
+    }
+
+    function drawFighter(x, y, color, isEnemy = false) {
+        ctx.save();
+        ctx.translate(x, y);
+        if (isEnemy) ctx.scale(-1, 1);
+        ctx.shadowBlur = 10;
+        ctx.shadowColor = color;
+        ctx.fillStyle = color;
+        ctx.beginPath();
+        ctx.moveTo(-10, -15); ctx.lineTo(5, 0); ctx.lineTo(-10, 15);
+        ctx.fill();
+        ctx.fillStyle = '#eee';
+        ctx.beginPath();
+        ctx.moveTo(20, 0); ctx.lineTo(-15, -7); ctx.lineTo(-15, 7);
+        ctx.closePath();
+        ctx.fill();
+        ctx.fillStyle = 'rgba(255, 255, 255, 0.7)';
+        ctx.beginPath();
+        ctx.ellipse(5, 0, 8, 3, 0, 0, Math.PI * 2);
+        ctx.fill();
+        ctx.restore();
+    }
+
+    function update() {
+        if (isGameOver) return;
+        if (!isHost) {
+            conn.send({ type: 'INPUT', id: myId, keys: keys });
+            updateUI();
+            return;
+        }
+
+        const now = Date.now();
+        let allPlayersDead = true;
+
+        for (let id in gameState.players) {
+            const p = gameState.players[id];
+            if (p.hp <= 0) continue;
+            allPlayersDead = false;
+
+            const pKeys = (id === myId) ? keys : p.keys;
+            if (pKeys) {
+                if (pKeys['ArrowUp']) p.y -= 6;
+                if (pKeys['ArrowDown']) p.y += 6;
+                if (pKeys['ArrowLeft']) p.x -= 6;
+                if (pKeys['ArrowRight']) p.x += 6;
+            }
+
+            // 화면 경계 제한
+            p.x = Math.max(20, Math.min(canvas.width - 20, p.x));
+            p.y = Math.max(20, Math.min(canvas.height - 20, p.y));
+
+            if (p.hp < PLAYER_MAX_HP) p.hp += 0.001;
+
+            if (now - p.lastFire > p.fireRate) {
+                let target = null;
+                let minDist = 600;
+                gameState.enemies.forEach(en => {
+                    let d = Math.hypot(en.x - p.x, en.y - p.y);
+                    if (d < minDist) { minDist = d; target = en; }
+                });
+                if (target) {
+                    const angle = Math.atan2(target.y - p.y, target.x - p.x);
+                    gameState.bullets.push({ x: p.x + 20, y: p.y, vx: Math.cos(angle) * 12, vy: Math.sin(angle) * 12, owner: 'player', pId: id });
+                    p.lastFire = now;
+                }
+            }
+        }
+
+        if (allPlayersDead) {
+            gameState.isGameOver = true;
+            showGameOver();
+        }
+
+        gameState.enemies.forEach(en => {
+            en.x -= 3;
+            if (en.x < -100) {
+                en.x = canvas.width + 100;
+                en.y = Math.random() * canvas.height;
+            }
+            en.y += Math.sin(now / 1000 + en.x / 100) * 2;
+            if (now - en.lastFire > ENEMY_FIRE_RATE) {
+                let targetPlayer = null;
+                for (let id in gameState.players) {
+                    if (gameState.players[id].hp > 0) { targetPlayer = gameState.players[id]; break; }
+                }
+                if (targetPlayer && en.x < canvas.width) {
+                    const angle = Math.atan2(targetPlayer.y - en.y, targetPlayer.x - en.x);
+                    gameState.bullets.push({ x: en.x - 20, y: en.y, vx: Math.cos(angle) * 7, vy: Math.sin(angle) * 7, owner: 'enemy' });
+                    en.lastFire = now;
+                }
+            }
+        });
+
+        gameState.bullets = gameState.bullets.filter(b => {
+            b.x += b.vx;
+            b.y += b.vy;
+            if (b.owner === 'player') {
+                for (let en of gameState.enemies) {
+                    if (Math.hypot(b.x - en.x, b.y - en.y) < 25) {
+                        en.hp -= 1;
+                        if (en.hp <= 0) {
+                            en.x = canvas.width + 200; en.hp = ENEMY_MAX_HP;
+                            gameState.players[b.pId].score += 100;
+                            gameState.players[b.pId].points += 100;
+                        }
+                        return false;
+                    }
+                }
+            } else {
+                for (let id in gameState.players) {
+                    const p = gameState.players[id];
+                    if (p.hp > 0 && Math.hypot(b.x - p.x, b.y - p.y) < 20) {
+                        p.hp -= 1; return false;
+                    }
+                }
+            }
+            return b.x > -100 && b.x < canvas.width + 100 && b.y > -100 && b.y < canvas.height + 100;
+        });
+
+        updateUI();
+        if (conn && conn.open) conn.send(gameState);
+    }
+
+    function updateUI() {
+        const myData = gameState.players[myId];
+        if (!myData) return;
+        document.getElementById('u-points').innerText = Math.floor(myData.points);
+        document.getElementById('btn-upgrade-fire').disabled = myData.points < UPGRADE_COST;
+        let hpHTML = '';
+        for (let id in gameState.players) {
+            const p = gameState.players[id];
+            const isMe = id === myId;
+            const hpPercent = (p.hp / PLAYER_MAX_HP) * 100;
+            hpHTML += `
+                <div style="margin-bottom:10px;">
+                    <div class="stat-label">${isMe ? '내 기체' : '편대원'} | Score: ${p.score}</div>
+                    <div style="width:100%; height:8px; background:#222; border-radius:4px;">
+                        <div style="width:${Math.max(0, hpPercent)}%; height:100%; background:${p.hp > 3 ? '#0f0' : '#f00'}; border-radius:4px; transition:0.3s;"></div>
+                    </div>
+                </div>
+            `;
+        }
+        document.getElementById('player-health-info').innerHTML = hpHTML;
+    }
+
+    function draw() {
+        ctx.clearRect(0, 0, canvas.width, canvas.height);
+        ctx.strokeStyle = '#002244';
+        ctx.lineWidth = 1;
+        for(let i=0; i<canvas.width; i+=100) {
+            ctx.beginPath(); ctx.moveTo(i - (Date.now()/20 % 100), 0); ctx.lineTo(i - (Date.now()/20 % 100), canvas.height); ctx.stroke();
+        }
+        gameState.enemies.forEach(en => drawFighter(en.x, en.y, '#ff4444', true));
+        for (let id in gameState.players) {
+            const p = gameState.players[id];
+            if (p.hp > 0) drawFighter(p.x, p.y, p.color);
+        }
+        gameState.bullets.forEach(b => {
+            ctx.fillStyle = b.owner === 'player' ? '#00ffff' : '#ffaa00';
+            ctx.beginPath(); ctx.arc(b.x, b.y, 3, 0, Math.PI*2); ctx.fill();
+        });
+    }
+
+    function gameLoop() {
+        update(); draw();
+        if (!isGameOver) requestAnimationFrame(gameLoop);
+    }
+
+    window.addEventListener('resize', () => {
+        canvas.width = window.innerWidth;
+        canvas.height = window.innerHeight;
+    });
+</script>
+</body>
+</html>
