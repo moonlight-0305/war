@@ -71,7 +71,6 @@
 <body>
 
 <div id="ui-container">
-    <!-- 초기 접속 뷰 및 대기실 채팅 -->
     <div id="setup-view" class="glass-panel">
         <h2 style="margin:0; color:#00aaff; letter-spacing: 2px; text-align: center;">FIGHTER ACE</h2>
         
@@ -97,7 +96,6 @@
         </div>
     </div>
 
-    <!-- 게임 중 UI -->
     <div id="game-ui" style="display:none;">
         <button id="menu-toggle-btn" onclick="toggleMenu()">업그레이드 메뉴 (TAB)</button>
         
@@ -107,11 +105,11 @@
             <div class="stat-label" style="margin-top:10px;">보유 포인트: <span id="u-points" style="color:#fff; font-weight:bold; font-size:1.2em;">0</span></div>
             
             <div class="menu-title">기체 강화</div>
-            <button id="btn-upgrade-fire" style="width:100%" onclick="sendUpgrade('fireRate')">연사력 강화 (500)</button>
-            <button id="btn-upgrade-hp" style="width:100%" onclick="sendUpgrade('maxHp')">내구도 수리 (300)</button>
+            <button id="btn-upgrade-fire" style="width:100%" onclick="sendUpgrade('fireRate')">연사력 강화 (50)</button>
+            <button id="btn-upgrade-hp" style="width:100%" onclick="sendUpgrade('maxHp')">내구도 수리 (50)</button>
             
             <div class="menu-title">특수 무기</div>
-            <button id="btn-nuke" class="nuke-btn" style="width:100%" onclick="sendUpgrade('nuke')">☢ 핵미사일 구매 (1000)</button>
+            <button id="btn-nuke" class="nuke-btn" style="width:100%" onclick="sendUpgrade('nuke')">☢ 핵미사일 구매 (200)</button>
             <div id="nuke-count-label" style="font-size:0.75em; text-align:center; margin-top:4px; color:#ffaa00;">보유 중인 핵: 0 (Q키 사용)</div>
         </div>
     </div>
@@ -131,9 +129,10 @@
     canvas.width = window.innerWidth;
     canvas.height = window.innerHeight;
 
+    // 가격 대폭 인하
     const INITIAL_PLAYER_MAX_HP = 10;
     const INITIAL_ENEMY_MAX_HP = 2;
-    const COSTS = { fireRate: 500, maxHp: 300, nuke: 1000 };
+    const COSTS = { fireRate: 50, maxHp: 50, nuke: 200 };
 
     let peer, conn, myShortId;
     let isHost = true;
@@ -152,9 +151,7 @@
 
     const keys = {};
     window.addEventListener('keydown', e => {
-        // 채팅 입력 중에는 게임 조작 방지
         if (document.activeElement.id === 'chat-input') return;
-
         keys[e.code] = true;
         if (e.code === 'Tab') { e.preventDefault(); toggleMenu(); }
         if (e.code === 'KeyQ' && !isGameOver) {
@@ -206,7 +203,6 @@
                 addChatMessage(data.sender, data.msg);
                 return;
             }
-
             if (isHost) {
                 if (data.type === 'JOIN') initPlayer(data.id, false);
                 else if (data.type === 'INPUT') {
@@ -222,16 +218,12 @@
         });
     }
 
-    // 채팅 관련 함수
     function sendChatMessage() {
         const input = document.getElementById('chat-input');
         const msg = input.value.trim();
         if (!msg) return;
-
         addChatMessage("나", msg);
-        if (conn && conn.open) {
-            conn.send({ type: 'CHAT', sender: myShortId, msg: msg });
-        }
+        if (conn && conn.open) conn.send({ type: 'CHAT', sender: myShortId, msg: msg });
         input.value = "";
     }
 
@@ -275,7 +267,6 @@
     function applyUpgrade(id, stat) {
         const p = gameState.players[id];
         if (!p) return;
-
         if (stat === 'fireRate' && p.points >= COSTS.fireRate) {
             p.fireRate = Math.max(80, p.fireRate - 80);
             p.points -= COSTS.fireRate;
@@ -330,10 +321,8 @@
             updateUI();
             return;
         }
-
         const now = Date.now();
         gameState.difficulty = 1 + (now - gameState.startTime) / 60000 * 0.2;
-
         let aliveCount = 0;
         for (let id in gameState.players) {
             const p = gameState.players[id];
@@ -347,7 +336,6 @@
             p.x = Math.max(30, Math.min(canvas.width - 30, p.x));
             p.y = Math.max(30, Math.min(canvas.height - 30, p.y));
             if (p.hp < p.maxHp) p.hp += 0.002;
-
             if (now - p.lastFire > p.fireRate) {
                 let target = null, minDist = 1000;
                 gameState.enemies.forEach(en => {
@@ -365,7 +353,6 @@
             }
         }
         if (aliveCount === 0) { gameState.isGameOver = true; showGameOver(); }
-
         gameState.enemies.forEach(en => {
             en.x -= (3.5 + gameState.difficulty * 0.5);
             en.y += Math.sin(now / 800 + en.x / 100) * 2;
@@ -379,7 +366,6 @@
                 en.lastFire = now;
             }
         });
-
         gameState.bullets = gameState.bullets.filter(b => {
             b.x += b.vx; b.y += b.vy;
             if (b.owner === 'p') {
@@ -401,7 +387,6 @@
             }
             return b.x > -100 && b.x < canvas.width + 100;
         });
-
         updateUI();
         if (conn && conn.open) conn.send(gameState);
     }
@@ -414,19 +399,11 @@
         document.getElementById('btn-upgrade-fire').disabled = myData.points < COSTS.fireRate;
         document.getElementById('btn-upgrade-hp').disabled = myData.points < COSTS.maxHp;
         document.getElementById('btn-nuke').disabled = myData.points < COSTS.nuke;
-
         let hpHTML = '';
         for (let id in gameState.players) {
             const p = gameState.players[id];
             const hpPct = (p.hp / p.maxHp) * 100;
-            hpHTML += `
-                <div style="margin-bottom:10px">
-                    <div class="stat-label" style="display:flex; justify-content:space-between;">
-                        <span>${id === myShortId ? "본체" : "편대원"}</span> <span>Score: ${p.score}</span>
-                    </div>
-                    <div class="hp-bar-bg"><div class="hp-bar-fill" style="width:${Math.max(0, hpPct)}%; background:${p.color};"></div></div>
-                </div>
-            `;
+            hpHTML += `<div style="margin-bottom:10px"><div class="stat-label" style="display:flex; justify-content:space-between;"><span>${id === myShortId ? "본체" : "편대원"}</span> <span>Score: ${p.score}</span></div><div class="hp-bar-bg"><div class="hp-bar-fill" style="width:${Math.max(0, hpPct)}%; background:${p.color};"></div></div></div>`;
         }
         document.getElementById('player-health-info').innerHTML = hpHTML;
     }
@@ -437,15 +414,13 @@
         gameState.enemies.forEach(e => drawShip(e.x, e.y, '#ff4444', true));
         for (let id in gameState.players) if (gameState.players[id].hp > 0) drawShip(gameState.players[id].x, gameState.players[id].y, gameState.players[id].color);
         gameState.bullets.forEach(b => { ctx.fillStyle = b.color; ctx.beginPath(); ctx.arc(b.x, b.y, 4, 0, Math.PI * 2); ctx.fill(); });
-
         if (nukeEffectActive > 0) {
             ctx.save();
             ctx.fillStyle = nukeEffectActive > 0.8 ? `rgba(255,255,255,${(nukeEffectActive-0.8)*5})` : `rgba(255,100,0,${nukeEffectActive})`;
             ctx.fillRect(0,0,canvas.width,canvas.height);
             let radius = (1 - nukeEffectActive) * canvas.width * 1.5;
             let grad = ctx.createRadialGradient(canvas.width/2, canvas.height/2, 0, canvas.width/2, canvas.height/2, radius);
-            grad.addColorStop(0, `rgba(255,255,200,${nukeEffectActive})`);
-            grad.addColorStop(1, 'transparent');
+            grad.addColorStop(0, `rgba(255,255,200,${nukeEffectActive})`); grad.addColorStop(1, 'transparent');
             ctx.fillStyle = grad; ctx.beginPath(); ctx.arc(canvas.width/2, canvas.height/2, radius, 0, Math.PI*2); ctx.fill();
             ctx.restore();
             nukeEffectActive -= 0.02;
@@ -455,7 +430,6 @@
     }
 
     function gameLoop() { update(); draw(); if (!isGameOver) requestAnimationFrame(gameLoop); }
-
     initNetwork();
 </script>
 </body>
