@@ -6,63 +6,64 @@
     <title>전투기 에이스: 팀 코옵 vs AI</title>
     <script src="https://unpkg.com/peerjs@1.5.2/dist/peerjs.min.js"></script>
     <style>
-        body { margin: 0; overflow: hidden; background: #00050a; color: #fff; font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif; }
+        body { margin: 0; overflow: hidden; background: #00050a; color: #fff; font-family: 'Segoe UI', sans-serif; }
         canvas { display: block; }
         #ui-panel { 
             position: absolute; top: 20px; left: 20px; z-index: 10; 
-            background: rgba(0, 20, 40, 0.85); padding: 20px; 
+            background: rgba(0, 20, 40, 0.9); padding: 20px; 
             border: 2px solid #00aaff; border-radius: 12px; pointer-events: auto;
-            box-shadow: 0 0 20px rgba(0, 170, 255, 0.3);
-            min-width: 250px;
+            box-shadow: 0 0 20px rgba(0, 170, 255, 0.4); min-width: 260px;
         }
         .setup-group { margin-bottom: 15px; }
-        input { padding: 8px; background: #001a33; color: #fff; border: 1px solid #00aaff; border-radius: 4px; width: 180px; }
+        input { padding: 8px; background: #001a33; color: #fff; border: 1px solid #00aaff; border-radius: 4px; width: 140px; font-size: 1.1em; text-align: center; }
         button { 
             padding: 8px 15px; cursor: pointer; background: #00aaff; color: #fff; 
             border: none; border-radius: 4px; font-weight: bold; transition: 0.3s;
         }
         button:hover { background: #00d4ff; box-shadow: 0 0 10px #00d4ff; }
         button:disabled { background: #444; cursor: not-allowed; }
-        #upgrade-section { margin-top: 15px; border-top: 1px solid #444; padding-top: 10px; }
+        #upgrade-section { margin-top: 15px; border-top: 1px solid #444; padding-top: 15px; }
         .stat-label { font-size: 0.85em; color: #00d4ff; margin-bottom: 5px; }
-
         #game-over-screen {
             position: absolute; top: 50%; left: 50%; transform: translate(-50%, -50%);
-            background: rgba(150, 0, 0, 0.9); padding: 40px; border-radius: 20px;
+            background: rgba(150, 0, 0, 0.95); padding: 50px; border-radius: 20px;
             text-align: center; display: none; z-index: 100; border: 4px solid #ff0000;
+            box-shadow: 0 0 50px #ff0000;
         }
+        .hp-bar-bg { width: 100%; height: 10px; background: #222; border-radius: 5px; margin-top: 4px; overflow: hidden; }
+        .hp-bar-fill { height: 100%; transition: width 0.3s ease; }
     </style>
 </head>
 <body>
 
 <div id="ui-panel">
     <div id="setup-view">
-        <h2 style="margin-top:0; color:#00aaff;">FIGHTER ACE</h2>
+        <h2 style="margin:0 0 15px 0; color:#00aaff; letter-spacing: 2px;">FIGHTER ACE</h2>
         <div class="setup-group">
-            <div class="stat-label">내 호출 부호 (ID)</div>
-            <strong id="my-id">연결 중...</strong>
+            <div class="stat-label">내 접속 코드 (공유용)</div>
+            <strong id="my-id" style="font-size: 2em; color: #fff; text-shadow: 0 0 10px #0af;">연결 중...</strong>
         </div>
         <div class="setup-group">
-            <input type="text" id="peer-id" placeholder="상대방 호출 부호 입력">
-            <button onclick="connectToPeer()">출격 (연결)</button>
+            <input type="text" id="peer-id" placeholder="상대 코드 4자리" maxlength="4">
+            <button onclick="connectToPeer()">전투 참가</button>
         </div>
-        <div style="font-size: 0.75em; color: #aaa;">* 방장은 ID를 공유하고 대기하세요.</div>
+        <div style="font-size: 0.8em; color: #888;">* 코드를 친구에게 알려주거나 친구 코드를 입력하세요.</div>
     </div>
 
     <div id="game-stats" style="display:none;">
         <div id="player-health-info"></div>
         <div id="upgrade-section">
-            <div class="stat-label">업그레이드 포인트: <span id="u-points">0</span></div>
-            <button id="btn-upgrade-fire" onclick="sendUpgrade('fireRate')">공격 속도 강화 (P 500)</button>
+            <div class="stat-label">업그레이드 포인트: <span id="u-points" style="color:#fff; font-weight:bold;">0</span></div>
+            <button id="btn-upgrade-fire" style="width:100%" onclick="sendUpgrade()">연사력 강화 (Cost 500)</button>
         </div>
-        <div id="connection-status" style="margin-top:10px; font-size:0.8em; color:#0f0;"></div>
+        <div id="connection-status" style="margin-top:10px; font-size:0.8em; color:#0f0;">통신 상태 양호</div>
     </div>
 </div>
 
 <div id="game-over-screen">
-    <h1 style="font-size: 3em; margin: 0;">MISSION FAILED</h1>
-    <p>기체가 파괴되었습니다.</p>
-    <button onclick="location.reload()">다시 시작</button>
+    <h1 style="font-size: 4em; margin: 0; text-shadow: 0 0 20px #000;">MISSION FAILED</h1>
+    <p style="font-size: 1.2em;">모든 기체가 격추되었습니다.</p>
+    <button style="padding: 15px 30px; font-size: 1.2em;" onclick="location.reload()">새 작전 시작</button>
 </div>
 
 <canvas id="gameCanvas"></canvas>
@@ -73,49 +74,56 @@
     canvas.width = window.innerWidth;
     canvas.height = window.innerHeight;
 
-    // 게임 밸런스 상수
+    // 게임 상수
     const PLAYER_MAX_HP = 10;
-    const ENEMY_MAX_HP = 2; 
-    const BASE_FIRE_RATE = 600;
-    const ENEMY_FIRE_RATE = 2000;
+    const ENEMY_MAX_HP = 2;
     const UPGRADE_COST = 500;
 
     let peer;
     let conn;
     let isHost = true;
-    let myId = null;
+    let myShortId = null;
     let isGameOver = false;
 
-    // 게임 상태
+    // 게임 상태 객체
     let gameState = {
-        players: {}, 
+        players: {},
         enemies: [],
         bullets: [],
-        particles: []
+        particles: [],
+        isGameOver: false
     };
 
     const keys = {};
-    window.addEventListener('keydown', e => {
-        keys[e.code] = true;
-    });
+    window.addEventListener('keydown', e => keys[e.code] = true);
     window.addEventListener('keyup', e => keys[e.code] = false);
 
-    // --- PeerJS 엔진 ---
-    peer = new Peer();
+    // --- PeerJS 설정 (짧은 ID 생성 시도) ---
+    function initNetwork() {
+        const randomId = Math.floor(1000 + Math.random() * 9000).toString(); // 4자리 숫자 생성
+        peer = new Peer(randomId);
 
-    peer.on('open', id => {
-        myId = id;
-        document.getElementById('my-id').innerText = id;
-        initPlayer(id, true);
-    });
+        peer.on('open', id => {
+            myShortId = id;
+            document.getElementById('my-id').innerText = id;
+            initPlayer(id, true);
+        });
 
-    peer.on('connection', c => {
-        conn = c;
-        isHost = true;
-        setupSocket();
-        spawnEnemies();
-        startGameUI();
-    });
+        peer.on('error', err => {
+            if (err.type === 'unavailable-id') {
+                // 이미 사용 중인 ID면 무작위로 다시 시도
+                peer = new Peer(); 
+            }
+        });
+
+        peer.on('connection', c => {
+            conn = c;
+            isHost = true;
+            setupSocket();
+            spawnInitialEnemies();
+            startGameUI();
+        });
+    }
 
     function connectToPeer() {
         const targetId = document.getElementById('peer-id').value;
@@ -128,20 +136,16 @@
 
     function setupSocket() {
         conn.on('open', () => {
-            document.getElementById('connection-status').innerText = "편대 연결됨";
-            if (!isHost) conn.send({ type: 'JOIN', id: myId });
+            if (!isHost) conn.send({ type: 'JOIN', id: myShortId });
             requestAnimationFrame(gameLoop);
         });
 
         conn.on('data', data => {
             if (isHost) {
-                if (data.type === 'JOIN') {
-                    initPlayer(data.id, false);
-                } else if (data.type === 'INPUT') {
+                if (data.type === 'JOIN') initPlayer(data.id, false);
+                else if (data.type === 'INPUT') {
                     if (gameState.players[data.id]) gameState.players[data.id].keys = data.keys;
-                } else if (data.type === 'UPGRADE') {
-                    applyUpgrade(data.id, data.stat);
-                }
+                } else if (data.type === 'UPGRADE') applyUpgrade(data.id);
             } else {
                 gameState = data;
                 if (gameState.isGameOver) showGameOver();
@@ -152,41 +156,37 @@
     function initPlayer(id, hostFlag) {
         gameState.players[id] = {
             x: 150,
-            y: canvas.height / 2 + (hostFlag ? -50 : 50),
+            y: canvas.height / 2 + (hostFlag ? -60 : 60),
             hp: PLAYER_MAX_HP,
             score: 0,
             points: 0,
-            fireRate: BASE_FIRE_RATE,
+            fireRate: 600,
             lastFire: 0,
             color: hostFlag ? '#00aaff' : '#00ffaa'
         };
     }
 
-    function spawnEnemies() {
-        for (let i = 0; i < 5; i++) {
+    function spawnInitialEnemies() {
+        for (let i = 0; i < 6; i++) {
             gameState.enemies.push({
-                id: 'ai_' + i,
-                x: canvas.width + Math.random() * 500,
+                x: canvas.width + Math.random() * 800,
                 y: Math.random() * canvas.height,
                 hp: ENEMY_MAX_HP,
-                lastFire: 0,
-                targetY: Math.random() * canvas.height
+                lastFire: 0
             });
         }
     }
 
-    function sendUpgrade(stat) {
-        if (isHost) applyUpgrade(myId, stat);
-        else conn.send({ type: 'UPGRADE', id: myId, stat: stat });
+    function sendUpgrade() {
+        if (isHost) applyUpgrade(myShortId);
+        else conn.send({ type: 'UPGRADE', id: myShortId });
     }
 
-    function applyUpgrade(id, stat) {
+    function applyUpgrade(id) {
         const p = gameState.players[id];
         if (p && p.points >= UPGRADE_COST) {
-            if (stat === 'fireRate') {
-                p.fireRate = Math.max(150, p.fireRate - 80);
-                p.points -= UPGRADE_COST;
-            }
+            p.fireRate = Math.max(100, p.fireRate - 100);
+            p.points -= UPGRADE_COST;
         }
     }
 
@@ -200,107 +200,133 @@
         document.getElementById('game-over-screen').style.display = 'block';
     }
 
-    function drawFighter(x, y, color, isEnemy = false) {
+    // --- 그래픽 드로잉 ---
+    function drawShip(x, y, color, isEnemy = false) {
         ctx.save();
         ctx.translate(x, y);
         if (isEnemy) ctx.scale(-1, 1);
-        ctx.shadowBlur = 10;
+
+        // 엔진 화염 효과
+        if (!isEnemy) {
+            ctx.fillStyle = (Date.now() % 200 < 100) ? '#ffaa00' : '#ff4400';
+            ctx.beginPath();
+            ctx.moveTo(-15, 0); ctx.lineTo(-25, -5); ctx.lineTo(-25, 5);
+            ctx.fill();
+        }
+
+        // 선체
+        ctx.shadowBlur = 15;
         ctx.shadowColor = color;
         ctx.fillStyle = color;
         ctx.beginPath();
-        ctx.moveTo(-10, -15); ctx.lineTo(5, 0); ctx.lineTo(-10, 15);
-        ctx.fill();
-        ctx.fillStyle = '#eee';
-        ctx.beginPath();
-        ctx.moveTo(20, 0); ctx.lineTo(-15, -7); ctx.lineTo(-15, 7);
+        ctx.moveTo(25, 0); ctx.lineTo(-15, -12); ctx.lineTo(-10, 0); ctx.lineTo(-15, 12);
         ctx.closePath();
         ctx.fill();
-        ctx.fillStyle = 'rgba(255, 255, 255, 0.7)';
+
+        // 날개 장식
+        ctx.strokeStyle = '#fff';
+        ctx.lineWidth = 2;
+        ctx.stroke();
+
+        // 콕핏
+        ctx.fillStyle = 'rgba(255, 255, 255, 0.8)';
         ctx.beginPath();
-        ctx.ellipse(5, 0, 8, 3, 0, 0, Math.PI * 2);
+        ctx.ellipse(5, 0, 7, 3, 0, 0, Math.PI * 2);
         ctx.fill();
+
         ctx.restore();
     }
 
+    // --- 게임 로직 업데이트 ---
     function update() {
         if (isGameOver) return;
+
         if (!isHost) {
-            conn.send({ type: 'INPUT', id: myId, keys: keys });
+            conn.send({ type: 'INPUT', id: myShortId, keys: keys });
             updateUI();
             return;
         }
 
         const now = Date.now();
-        let allPlayersDead = true;
+        let aliveCount = 0;
 
+        // 플레이어 처리
         for (let id in gameState.players) {
             const p = gameState.players[id];
             if (p.hp <= 0) continue;
-            allPlayersDead = false;
+            aliveCount++;
 
-            const pKeys = (id === myId) ? keys : p.keys;
+            const pKeys = (id === myShortId) ? keys : p.keys;
             if (pKeys) {
-                if (pKeys['ArrowUp']) p.y -= 6;
-                if (pKeys['ArrowDown']) p.y += 6;
-                if (pKeys['ArrowLeft']) p.x -= 6;
-                if (pKeys['ArrowRight']) p.x += 6;
+                if (pKeys['ArrowUp']) p.y -= 7;
+                if (pKeys['ArrowDown']) p.y += 7;
+                if (pKeys['ArrowLeft']) p.x -= 7;
+                if (pKeys['ArrowRight']) p.x += 7;
             }
 
-            // 화면 경계 제한
-            p.x = Math.max(20, Math.min(canvas.width - 20, p.x));
-            p.y = Math.max(20, Math.min(canvas.height - 20, p.y));
+            // 경계 제한
+            p.x = Math.max(30, Math.min(canvas.width - 30, p.x));
+            p.y = Math.max(30, Math.min(canvas.height - 30, p.y));
 
-            if (p.hp < PLAYER_MAX_HP) p.hp += 0.001;
+            // 자연 회복
+            if (p.hp < PLAYER_MAX_HP) p.hp += 0.002;
 
+            // 자동 사격 (가장 가까운 적 조준)
             if (now - p.lastFire > p.fireRate) {
                 let target = null;
-                let minDist = 600;
+                let minDist = 800;
                 gameState.enemies.forEach(en => {
                     let d = Math.hypot(en.x - p.x, en.y - p.y);
                     if (d < minDist) { minDist = d; target = en; }
                 });
+
                 if (target) {
                     const angle = Math.atan2(target.y - p.y, target.x - p.x);
-                    gameState.bullets.push({ x: p.x + 20, y: p.y, vx: Math.cos(angle) * 12, vy: Math.sin(angle) * 12, owner: 'player', pId: id });
+                    gameState.bullets.push({ 
+                        x: p.x + 20, y: p.y, 
+                        vx: Math.cos(angle) * 15, vy: Math.sin(angle) * 15, 
+                        owner: 'p', pId: id, color: p.color 
+                    });
                     p.lastFire = now;
                 }
             }
         }
 
-        if (allPlayersDead) {
+        if (aliveCount === 0) {
             gameState.isGameOver = true;
             showGameOver();
         }
 
+        // 적군 업데이트
         gameState.enemies.forEach(en => {
-            en.x -= 3;
+            en.x -= 3.5;
+            en.y += Math.sin(now / 800 + en.x / 100) * 2; // 지그재그 이동
+
             if (en.x < -100) {
-                en.x = canvas.width + 100;
+                en.x = canvas.width + 200;
                 en.y = Math.random() * canvas.height;
+                en.hp = ENEMY_MAX_HP;
             }
-            en.y += Math.sin(now / 1000 + en.x / 100) * 2;
-            if (now - en.lastFire > ENEMY_FIRE_RATE) {
-                let targetPlayer = null;
-                for (let id in gameState.players) {
-                    if (gameState.players[id].hp > 0) { targetPlayer = gameState.players[id]; break; }
-                }
-                if (targetPlayer && en.x < canvas.width) {
-                    const angle = Math.atan2(targetPlayer.y - en.y, targetPlayer.x - en.x);
-                    gameState.bullets.push({ x: en.x - 20, y: en.y, vx: Math.cos(angle) * 7, vy: Math.sin(angle) * 7, owner: 'enemy' });
-                    en.lastFire = now;
-                }
+
+            // 적 사격
+            if (now - en.lastFire > 2200 && en.x < canvas.width) {
+                gameState.bullets.push({ x: en.x - 20, y: en.y, vx: -8, vy: 0, owner: 'e', color: '#ff3333' });
+                en.lastFire = now;
             }
         });
 
+        // 총알 물리 및 충돌
         gameState.bullets = gameState.bullets.filter(b => {
             b.x += b.vx;
             b.y += b.vy;
-            if (b.owner === 'player') {
+
+            if (b.owner === 'p') {
                 for (let en of gameState.enemies) {
-                    if (Math.hypot(b.x - en.x, b.y - en.y) < 25) {
+                    if (Math.hypot(b.x - en.x, b.y - en.y) < 28) {
                         en.hp -= 1;
                         if (en.hp <= 0) {
-                            en.x = canvas.width + 200; en.hp = ENEMY_MAX_HP;
+                            en.x = canvas.width + 300;
+                            en.hp = ENEMY_MAX_HP;
                             gameState.players[b.pId].score += 100;
                             gameState.players[b.pId].points += 100;
                         }
@@ -310,8 +336,9 @@
             } else {
                 for (let id in gameState.players) {
                     const p = gameState.players[id];
-                    if (p.hp > 0 && Math.hypot(b.x - p.x, b.y - p.y) < 20) {
-                        p.hp -= 1; return false;
+                    if (p.hp > 0 && Math.hypot(b.x - p.x, b.y - p.y) < 22) {
+                        p.hp -= 1;
+                        return false;
                     }
                 }
             }
@@ -323,20 +350,24 @@
     }
 
     function updateUI() {
-        const myData = gameState.players[myId];
+        const myData = gameState.players[myShortId];
         if (!myData) return;
+
         document.getElementById('u-points').innerText = Math.floor(myData.points);
         document.getElementById('btn-upgrade-fire').disabled = myData.points < UPGRADE_COST;
+
         let hpHTML = '';
         for (let id in gameState.players) {
             const p = gameState.players[id];
-            const isMe = id === myId;
-            const hpPercent = (p.hp / PLAYER_MAX_HP) * 100;
+            const name = (id === myShortId) ? "내 전투기" : "편대원";
+            const hpPct = (p.hp / PLAYER_MAX_HP) * 100;
             hpHTML += `
-                <div style="margin-bottom:10px;">
-                    <div class="stat-label">${isMe ? '내 기체' : '편대원'} | Score: ${p.score}</div>
-                    <div style="width:100%; height:8px; background:#222; border-radius:4px;">
-                        <div style="width:${Math.max(0, hpPercent)}%; height:100%; background:${p.hp > 3 ? '#0f0' : '#f00'}; border-radius:4px; transition:0.3s;"></div>
+                <div style="margin-bottom:12px">
+                    <div class="stat-label" style="display:flex; justify-content:space-between;">
+                        <span>${name}</span> <span>Score: ${p.score}</span>
+                    </div>
+                    <div class="hp-bar-bg">
+                        <div class="hp-bar-fill" style="width:${Math.max(0, hpPct)}%; background:${p.hp > 3 ? p.color : '#ff0000'};"></div>
                     </div>
                 </div>
             `;
@@ -345,25 +376,38 @@
     }
 
     function draw() {
-        ctx.clearRect(0, 0, canvas.width, canvas.height);
-        ctx.strokeStyle = '#002244';
-        ctx.lineWidth = 1;
-        for(let i=0; i<canvas.width; i+=100) {
-            ctx.beginPath(); ctx.moveTo(i - (Date.now()/20 % 100), 0); ctx.lineTo(i - (Date.now()/20 % 100), canvas.height); ctx.stroke();
+        ctx.fillStyle = '#00050a';
+        ctx.fillRect(0, 0, canvas.width, canvas.height);
+
+        // 배경 별 무리
+        ctx.fillStyle = '#fff';
+        for (let i = 0; i < 50; i++) {
+            let x = (Math.sin(i) * 10000 + Date.now() / 50) % canvas.width;
+            let y = (Math.cos(i) * 10000) % canvas.height;
+            ctx.globalAlpha = 0.3;
+            ctx.fillRect(x, y, 2, 2);
         }
-        gameState.enemies.forEach(en => drawFighter(en.x, en.y, '#ff4444', true));
+        ctx.globalAlpha = 1.0;
+
+        // 게임 요소 그리기
+        gameState.enemies.forEach(e => drawShip(e.x, e.y, '#ff4444', true));
         for (let id in gameState.players) {
-            const p = gameState.players[id];
-            if (p.hp > 0) drawFighter(p.x, p.y, p.color);
+            if (gameState.players[id].hp > 0) drawShip(gameState.players[id].x, gameState.players[id].y, gameState.players[id].color);
         }
+
         gameState.bullets.forEach(b => {
-            ctx.fillStyle = b.owner === 'player' ? '#00ffff' : '#ffaa00';
-            ctx.beginPath(); ctx.arc(b.x, b.y, 3, 0, Math.PI*2); ctx.fill();
+            ctx.shadowBlur = 8;
+            ctx.shadowColor = b.color;
+            ctx.fillStyle = b.color;
+            ctx.beginPath();
+            ctx.arc(b.x, b.y, 4, 0, Math.PI * 2);
+            ctx.fill();
         });
     }
 
     function gameLoop() {
-        update(); draw();
+        update();
+        draw();
         if (!isGameOver) requestAnimationFrame(gameLoop);
     }
 
@@ -371,6 +415,9 @@
         canvas.width = window.innerWidth;
         canvas.height = window.innerHeight;
     });
+
+    // 시작
+    initNetwork();
 </script>
 </body>
 </html>
