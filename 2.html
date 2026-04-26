@@ -1,0 +1,771 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>2D STRIKE: ULTIMATE OVERLOAD</title>
+    <script src="https://unpkg.com/peerjs@1.5.2/dist/peerjs.min.js"></script>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <style>
+        @import url('https://fonts.googleapis.com/css2?family=Black+Ops+One&family=JetBrains+Mono:wght@400;700&family=Orbitron:wght@400;900&display=swap');
+
+        :root {
+            --neon-blue: #00f2ff;
+            --neon-red: #ff0055;
+            --bg-dark: #020617;
+            --panel-bg: rgba(7, 10, 20, 0.98);
+        }
+
+        * { margin: 0; padding: 0; box-sizing: border-box; outline: none; }
+
+        body, html {
+            width: 100%;
+            height: 100%;
+            overflow: hidden;
+            background-color: var(--bg-dark);
+            font-family: 'JetBrains Mono', monospace;
+            color: #e2e8f0;
+        }
+
+        canvas {
+            display: block;
+            image-rendering: auto;
+        }
+
+        /* --- LOBBY UI --- */
+        #lobby {
+            position: fixed;
+            inset: 0;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            background: radial-gradient(circle at center, #1e293b 0%, #020617 100%);
+            z-index: 2000;
+        }
+
+        .lobby-box {
+            background: var(--panel-bg);
+            border: 2px solid #1e293b;
+            padding: 3rem;
+            width: 480px;
+            position: relative;
+            box-shadow: 0 0 100px rgba(0, 0, 0, 0.9);
+        }
+
+        .lobby-box::before {
+            content: ''; position: absolute; top: -2px; left: -2px; width: 40px; height: 40px;
+            border-top: 4px solid var(--neon-blue); border-left: 4px solid var(--neon-blue);
+        }
+
+        .lobby-title {
+            font-family: 'Black Ops One', cursive;
+            font-size: 3rem;
+            color: #fff;
+            text-align: center;
+            margin-bottom: 2.5rem;
+            text-shadow: 0 0 20px var(--neon-blue);
+            letter-spacing: 2px;
+        }
+
+        .btn {
+            width: 100%;
+            padding: 1.2rem;
+            margin: 0.5rem 0;
+            font-family: 'Orbitron', sans-serif;
+            font-weight: 900;
+            text-transform: uppercase;
+            cursor: pointer;
+            transition: all 0.3s cubic-bezier(0.175, 0.885, 0.32, 1.275);
+            border: 1px solid #334155;
+            background: #0f172a;
+            color: #fff;
+        }
+
+        .btn-primary:hover {
+            background: var(--neon-blue);
+            color: #000;
+            border-color: #fff;
+            transform: scale(1.02);
+            box-shadow: 0 0 30px var(--neon-blue);
+        }
+
+        .btn-host { border-color: var(--neon-blue); color: var(--neon-blue); }
+        .input-field {
+            width: 100%;
+            background: #000;
+            border: 1px solid #1e293b;
+            padding: 1.2rem;
+            color: var(--neon-blue);
+            text-align: center;
+            font-size: 1.5rem;
+            margin-bottom: 1rem;
+            font-family: 'Orbitron';
+        }
+
+        /* --- HUD SYSTEM --- */
+        #hud {
+            position: fixed;
+            inset: 0;
+            pointer-events: none;
+            z-index: 1000;
+            display: none;
+            padding: 40px;
+        }
+
+        .hud-top { display: flex; justify-content: space-between; align-items: flex-start; }
+        
+        .stat-card {
+            background: rgba(0,0,0,0.8);
+            border: 1px solid #1e293b;
+            padding: 15px 25px;
+            min-width: 150px;
+        }
+
+        .stat-label { font-size: 10px; color: #64748b; text-transform: uppercase; letter-spacing: 2px; }
+        .stat-value { font-size: 24px; font-weight: 900; font-family: 'Orbitron'; }
+
+        .hp-module {
+            position: fixed;
+            bottom: 40px;
+            left: 40px;
+            width: 400px;
+        }
+
+        .ammo-text { font-size: 4rem; font-family: 'Orbitron'; line-height: 1; color: var(--neon-blue); text-shadow: 0 0 20px var(--neon-blue); }
+        .ammo-label { font-size: 12px; color: #64748b; margin-bottom: 10px; }
+
+        .bar-bg { width: 100%; height: 10px; background: rgba(255,255,255,0.05); margin-top: 15px; border: 1px solid #1e293b; }
+        .bar-fill { height: 100%; width: 100%; background: var(--neon-blue); box-shadow: 0 0 15px var(--neon-blue); transition: width 0.1s ease; }
+
+        #level-toast {
+            position: fixed;
+            top: 50%;
+            left: 50%;
+            transform: translate(-50%, -50%);
+            font-family: 'Black Ops One';
+            font-size: 8rem;
+            color: #fff;
+            opacity: 0;
+            z-index: 1500;
+            pointer-events: none;
+            text-shadow: 0 0 50px var(--neon-blue);
+        }
+
+        /* --- GAME OVER --- */
+        #death-screen {
+            position: fixed;
+            inset: 0;
+            background: rgba(0,0,0,0.9);
+            display: none;
+            flex-direction: column;
+            justify-content: center;
+            align-items: center;
+            z-index: 3000;
+        }
+    </style>
+</head>
+<body>
+
+    <div id="level-toast">LEVEL UP</div>
+
+    <div id="death-screen">
+        <h2 class="text-6xl font-black text-red-600 mb-8 font-['Orbitron']">YOU DIED</h2>
+        <button onclick="location.reload()" class="btn btn-primary px-12 w-auto">REDEPLOY</button>
+    </div>
+
+    <!-- LOBBY SCREEN -->
+    <div id="lobby">
+        <div class="lobby-box">
+            <h1 class="lobby-title">ULTIMATE<br>OVERLOAD</h1>
+            
+            <div class="mb-8">
+                <p class="text-center text-[10px] text-slate-500 uppercase tracking-widest mb-2">My Deployment Code</p>
+                <div id="my-id-text" class="text-4xl text-center font-black text-white tracking-[8px] bg-black/40 py-4 border border-slate-800">-----</div>
+            </div>
+
+            <button onclick="startHosting()" id="host-btn" class="btn btn-host mb-4">Host Battle Session</button>
+            
+            <div class="relative py-4 flex items-center">
+                <div class="flex-grow border-t border-slate-800"></div>
+                <span class="px-4 text-[10px] text-slate-600 uppercase">Secure Tunnel</span>
+                <div class="flex-grow border-t border-slate-800"></div>
+            </div>
+
+            <input type="text" id="join-input" class="input-field" placeholder="ENTER 5-DIGIT CODE" maxlength="5">
+            <button onclick="startJoining()" id="join-btn" class="btn btn-primary">Join Tactical Unit</button>
+            
+            <p id="lobby-status" class="mt-6 text-center text-xs text-blue-400 animate-pulse font-mono">SYSTEM READY // IDLE</p>
+        </div>
+    </div>
+
+    <!-- IN-GAME HUD -->
+    <div id="hud">
+        <div class="hud-top">
+            <div class="stat-card" style="border-left: 5px solid var(--neon-blue);">
+                <div class="stat-label">Tactical Level</div>
+                <div id="hud-level" class="stat-value text-white">01</div>
+            </div>
+            <div class="stat-card" style="border-left: 5px solid var(--neon-red);">
+                <div class="stat-label">Active Hostiles</div>
+                <div id="hud-enemies" class="stat-value text-red-500">000</div>
+            </div>
+        </div>
+
+        <div class="hp-module">
+            <div class="ammo-label">PLASMA CORE STATUS</div>
+            <div class="ammo-text">OVERLOAD</div>
+            <div class="bar-bg">
+                <div id="hp-bar" class="bar-fill"></div>
+            </div>
+            <div class="flex justify-between mt-2 text-[10px] text-slate-500 font-bold">
+                <span>VITAL SIGNS: OPTIMAL</span>
+                <span id="coord-display">X: 0.0 Y: 0.0</span>
+            </div>
+        </div>
+    </div>
+
+    <canvas id="game-canvas"></canvas>
+
+    <script>
+        /**
+         * 1. CORE CONFIGURATION
+         */
+        const SETTINGS = {
+            TILE_SIZE: 64,
+            MAP_SIZE: 50, // 50x50 Tiles
+            PEER_PREFIX: "strike-ultimate-",
+            PLAYER_SPD: 6.0,
+            BULLET_SPD: 25.0,
+            AI_BASE_SPD: 2.2,
+            AI_ACCEL: 0.15,
+            AI_SPAWN_MIN: 2000,
+            MAX_AI_LEVEL: 100,
+            BLUE: "#00f2ff",
+            RED: "#ff0055",
+            PARTICLE_COUNT: 15
+        };
+
+        const WORLD = {
+            peer: null,
+            conn: null,
+            isHost: false,
+            connected: false,
+            myId: '',
+            
+            // Entities
+            map: [],
+            enemies: [],
+            bullets: [],
+            particles: [],
+            
+            // Player
+            me: { 
+                x: 0, y: 0, angle: 0, hp: 100, maxHp: 100, 
+                level: 1, xp: 0, kills: 0, lastFire: 0 
+            },
+            tm: null, // Teammate
+            
+            // Input
+            keys: {},
+            mouse: { x: 0, y: 0, down: false },
+            camera: { x: 0, y: 0 },
+            
+            // Timing
+            lastAiSpawn: 0,
+            gameTime: 0,
+            levelUpPending: false
+        };
+
+        const canvas = document.getElementById('game-canvas');
+        const ctx = canvas.getContext('2d', { alpha: false }); // Performance optimization
+
+        /**
+         * 2. NETWORKING LOGIC (PEERJS)
+         */
+        function initNetwork() {
+            WORLD.myId = Math.floor(10000 + Math.random() * 90000).toString();
+            document.getElementById('my-id-text').innerText = WORLD.myId;
+            
+            WORLD.peer = new Peer(SETTINGS.PEER_PREFIX + WORLD.myId, { debug: 1 });
+            
+            WORLD.peer.on('connection', c => {
+                if (WORLD.conn) return c.close();
+                WORLD.conn = c;
+                WORLD.isHost = true;
+                setupDataTunnel();
+            });
+
+            WORLD.peer.on('error', err => {
+                if (err.type === 'unavailable-id') initNetwork();
+                else logStatus("NETWORK ERROR: " + err.type);
+            });
+        }
+
+        function startHosting() {
+            logStatus("AWAITING TEAMMATE CONNECTION...");
+            document.getElementById('host-btn').disabled = true;
+        }
+
+        function startJoining() {
+            const code = document.getElementById('join-input').value.trim();
+            if (code.length !== 5) return logStatus("INVALID SECURITY CODE");
+            
+            logStatus("TUNNELING TO HOST...");
+            WORLD.conn = WORLD.peer.connect(SETTINGS.PEER_PREFIX + code, { reliable: true });
+            WORLD.isHost = false;
+            setupDataTunnel();
+        }
+
+        function setupDataTunnel() {
+            WORLD.conn.on('open', () => {
+                WORLD.connected = true;
+                document.getElementById('lobby').style.display = 'none';
+                document.getElementById('hud').style.display = 'block';
+                
+                if (WORLD.isHost) {
+                    createMap();
+                    spawnInitial();
+                } else {
+                    spawnInitial();
+                }
+                
+                requestAnimationFrame(loop);
+            });
+
+            WORLD.conn.on('data', data => handleIncoming(data));
+            WORLD.conn.on('close', () => location.reload());
+        }
+
+        function handleIncoming(data) {
+            switch(data.type) {
+                case 'MAP_SYNC': WORLD.map = data.map; break;
+                case 'TM_SYNC': WORLD.tm = data.p; break;
+                case 'FIRE': WORLD.bullets.push(data.b); break;
+                case 'AI_SYNC': 
+                    WORLD.enemies = data.enemies; 
+                    WORLD.me.level = data.level; 
+                    break;
+                case 'LVL_UP': triggerLevelEffects(); break;
+                case 'XP_GAIN': WORLD.me.xp += data.amt; checkLevelUp(); break;
+            }
+        }
+
+        function transmit(payload) {
+            if (WORLD.conn && WORLD.conn.open) WORLD.conn.send(payload);
+        }
+
+        /**
+         * 3. MAP & ENTITY GENERATION
+         */
+        function createMap() {
+            WORLD.map = [];
+            // Boundary walls
+            for(let x=0; x<SETTINGS.MAP_SIZE; x++) {
+                WORLD.map.push({ x: x*SETTINGS.TILE_SIZE, y: 0, type: 'metal' });
+                WORLD.map.push({ x: x*SETTINGS.TILE_SIZE, y: (SETTINGS.MAP_SIZE-1)*SETTINGS.TILE_SIZE, type: 'metal' });
+            }
+            for(let y=0; y<SETTINGS.MAP_SIZE; y++) {
+                WORLD.map.push({ x: 0, y: y*SETTINGS.TILE_SIZE, type: 'metal' });
+                WORLD.map.push({ x: (SETTINGS.MAP_SIZE-1)*SETTINGS.TILE_SIZE, y: y*SETTINGS.TILE_SIZE, type: 'metal' });
+            }
+            // Tactical Covers
+            for(let i=0; i<150; i++) {
+                let rx = Math.floor(Math.random()*(SETTINGS.MAP_SIZE-6)+3);
+                let ry = Math.floor(Math.random()*(SETTINGS.MAP_SIZE-6)+3);
+                // Safe spawn zones
+                if ((rx < 8 && ry < 8) || (rx > SETTINGS.MAP_SIZE-9 && ry > SETTINGS.MAP_SIZE-9)) continue;
+                WORLD.map.push({ x: rx*SETTINGS.TILE_SIZE, y: ry*SETTINGS.TILE_SIZE, type: 'box' });
+            }
+            transmit({ type: 'MAP_SYNC', map: WORLD.map });
+        }
+
+        function spawnInitial() {
+            if (WORLD.isHost) {
+                WORLD.me.x = 200; WORLD.me.y = 200;
+            } else {
+                WORLD.me.x = (SETTINGS.MAP_SIZE*SETTINGS.TILE_SIZE) - 200;
+                WORLD.me.y = (SETTINGS.MAP_SIZE*SETTINGS.TILE_SIZE) - 200;
+            }
+        }
+
+        function isColliding(x, y, r) {
+            for(let b of WORLD.map) {
+                if (x + r > b.x && x - r < b.x + SETTINGS.TILE_SIZE &&
+                    y + r > b.y && y - r < b.y + SETTINGS.TILE_SIZE) return true;
+            }
+            return false;
+        }
+
+        /**
+         * 4. ULTIMATE TACTICAL AI SYSTEM
+         */
+        function updateHostiles() {
+            if (!WORLD.isHost) return;
+
+            const now = Date.now();
+            const spawnDelay = Math.max(300, SETTINGS.AI_SPAWN_MIN - (WORLD.me.level * 100));
+            const maxEnemies = 10 + (WORLD.me.level * 4); // 갈수록 아주 많아짐
+
+            if (now - WORLD.lastAiSpawn > spawnDelay && WORLD.enemies.length < maxEnemies) {
+                WORLD.lastAiSpawn = now;
+                deployAIUnit();
+            }
+
+            WORLD.enemies.forEach((ai, idx) => {
+                // Find Target (Closest Player)
+                let target = WORLD.me;
+                let distMe = Math.hypot(ai.x - WORLD.me.x, ai.y - WORLD.me.y);
+                if (WORLD.tm) {
+                    let distTm = Math.hypot(ai.x - WORLD.tm.x, ai.y - WORLD.tm.y);
+                    if (distTm < distMe) { target = WORLD.tm; distMe = distTm; }
+                }
+
+                const angleToTarget = Math.atan2(target.y - ai.y, target.x - ai.x);
+                ai.angle = angleToTarget;
+
+                // --- TACTICAL LOGIC ---
+                let moveDir = angleToTarget;
+                
+                // 1. Separation (아군끼리 겹치지 않게 조절)
+                WORLD.enemies.forEach(other => {
+                    if (ai === other) return;
+                    let d = Math.hypot(ai.x - other.x, ai.y - other.y);
+                    if (d < 50) moveDir -= Math.atan2(other.y - ai.y, other.x - ai.x) * 0.1;
+                });
+
+                // 2. Behavioral Patterns
+                if (distMe < 200) moveDir += Math.PI; // 너무 가까우면 거리 유지 (Kiting)
+                else if (distMe < 450) moveDir += Math.PI/2 * Math.sin(Date.now()/500); // 측면 기동 (Strafing)
+
+                const speed = SETTINGS.AI_BASE_SPD + (WORLD.me.level * 0.12);
+                const vx = Math.cos(moveDir) * speed;
+                const vy = Math.sin(moveDir) * speed;
+
+                if (!isColliding(ai.x + vx, ai.y, 18)) ai.x += vx;
+                if (!isColliding(ai.x, ai.y + vy, 18)) ai.y += vy;
+
+                // AI Shooting (Prediction)
+                if (distMe < 600 && Math.random() < 0.015 + (WORLD.me.level * 0.002)) {
+                    const ab = {
+                        x: ai.x, y: ai.y,
+                        vx: Math.cos(angleToTarget) * 12, 
+                        vy: Math.sin(angleToTarget) * 12,
+                        owner: 'AI', color: SETTINGS.RED, life: 100
+                    };
+                    WORLD.bullets.push(ab);
+                    transmit({ type: 'FIRE', b: ab });
+                }
+
+                // Melee Collision
+                if (distMe < 40) applyDamage(0.5);
+            });
+
+            transmit({ type: 'AI_SYNC', enemies: WORLD.enemies, level: WORLD.me.level });
+        }
+
+        function deployAIUnit() {
+            const side = Math.floor(Math.random() * 4);
+            let sx, sy;
+            const pad = 100;
+            const bound = SETTINGS.MAP_SIZE * SETTINGS.TILE_SIZE;
+            
+            if (side === 0) { sx = Math.random()*bound; sy = pad; }
+            else if (side === 1) { sx = Math.random()*bound; sy = bound-pad; }
+            else if (side === 2) { sx = pad; sy = Math.random()*bound; }
+            else { sx = bound-pad; sy = Math.random()*bound; }
+
+            WORLD.enemies.push({
+                id: Math.random(),
+                x: sx, y: sy,
+                hp: 40 + (WORLD.me.level * 15),
+                maxHp: 40 + (WORLD.me.level * 15),
+                angle: 0,
+                type: Math.random() > 0.9 ? 'ELITE' : 'GRUNT'
+            });
+        }
+
+        /**
+         * 5. GAME LOOP & PLAYER LOGIC
+         */
+        function loop() {
+            update();
+            render();
+            requestAnimationFrame(loop);
+        }
+
+        function update() {
+            // Player Movement
+            let mx = 0, my = 0;
+            if (WORLD.keys['w'] || WORLD.keys['W']) my -= SETTINGS.PLAYER_SPD;
+            if (WORLD.keys['s'] || WORLD.keys['S']) my += SETTINGS.PLAYER_SPD;
+            if (WORLD.keys['a'] || WORLD.keys['A']) mx -= SETTINGS.PLAYER_SPD;
+            if (WORLD.keys['d'] || WORLD.keys['D']) mx += SETTINGS.PLAYER_SPD;
+
+            if (!isColliding(WORLD.me.x + mx, WORLD.me.y, 20)) WORLD.me.x += mx;
+            if (!isColliding(WORLD.me.x, WORLD.me.y + my, 20)) WORLD.me.y += my;
+
+            // Look Angle
+            WORLD.me.angle = Math.atan2(WORLD.mouse.y - canvas.height/2, WORLD.mouse.x - canvas.width/2);
+
+            // Infinite Shooting (No Cooldown)
+            if (WORLD.mouse.down) {
+                const b = {
+                    x: WORLD.me.x + Math.cos(WORLD.me.angle)*25,
+                    y: WORLD.me.y + Math.sin(WORLD.me.angle)*25,
+                    vx: Math.cos(WORLD.me.angle) * SETTINGS.BULLET_SPD,
+                    vy: Math.sin(WORLD.me.angle) * SETTINGS.BULLET_SPD,
+                    owner: 'ME', color: SETTINGS.BLUE, life: 70,
+                    dmg: 20 + (WORLD.me.level * 3)
+                };
+                WORLD.bullets.push(b);
+                transmit({ type: 'FIRE', b: b });
+                spawnMuzzle(b.x, b.y, WORLD.me.angle);
+            }
+
+            // Object Updates
+            updateBullets();
+            updateParticles();
+            if (WORLD.isHost) updateHostiles();
+
+            // Camera Smoothing
+            WORLD.camera.x += (WORLD.me.x - canvas.width/2 - WORLD.camera.x) * 0.15;
+            WORLD.camera.y += (WORLD.me.y - canvas.height/2 - WORLD.camera.y) * 0.15;
+
+            // Network Update
+            transmit({ type: 'TM_SYNC', p: { x: WORLD.me.x, y: WORLD.me.y, angle: WORLD.me.angle, hp: WORLD.me.hp } });
+            
+            refreshUI();
+        }
+
+        function updateBullets() {
+            for(let i=WORLD.bullets.length-1; i>=0; i--) {
+                const b = WORLD.bullets[i];
+                b.x += b.vx; b.y += b.vy; b.life--;
+
+                // Wall Hit
+                if (isColliding(b.x, b.y, 6)) {
+                    spawnImpact(b.x, b.y, b.color);
+                    WORLD.bullets.splice(i, 1);
+                    continue;
+                }
+
+                // AI Hit
+                if (b.owner === 'ME' || b.owner === 'TM') {
+                    for(let j=WORLD.enemies.length-1; j>=0; j--) {
+                        const en = WORLD.enemies[j];
+                        if (Math.hypot(b.x - en.x, b.y - en.y) < 25) {
+                            en.hp -= b.dmg;
+                            spawnBlood(b.x, b.y);
+                            WORLD.bullets.splice(i, 1);
+                            if (en.hp <= 0 && WORLD.isHost) {
+                                WORLD.enemies.splice(j, 1);
+                                WORLD.me.kills++;
+                                checkXP(30 + WORLD.me.level * 10);
+                                transmit({ type: 'XP_GAIN', amt: 30 + WORLD.me.level * 10 });
+                            }
+                            break;
+                        }
+                    }
+                } 
+                // Player Hit
+                else if (b.owner === 'AI') {
+                    if (Math.hypot(b.x - WORLD.me.x, b.y - WORLD.me.y) < 22) {
+                        applyDamage(12);
+                        WORLD.bullets.splice(i, 1);
+                    }
+                }
+
+                if (b.life <= 0) WORLD.bullets.splice(i, 1);
+            }
+        }
+
+        function applyDamage(val) {
+            WORLD.me.hp -= val;
+            if (WORLD.me.hp <= 0) {
+                WORLD.me.hp = 0;
+                document.getElementById('death-screen').style.display = 'flex';
+            }
+        }
+
+        function checkXP(val) {
+            WORLD.me.xp += val;
+            const threshold = WORLD.me.level * 400;
+            if (WORLD.me.xp >= threshold) {
+                WORLD.me.xp -= threshold;
+                WORLD.me.level++;
+                triggerLevelEffects();
+                transmit({ type: 'LVL_UP' });
+            }
+        }
+
+        /**
+         * 6. RENDERING CORE
+         */
+        function render() {
+            // Draw BG
+            ctx.fillStyle = "#020617";
+            ctx.fillRect(0, 0, canvas.width, canvas.height);
+
+            ctx.save();
+            ctx.translate(-WORLD.camera.x, -WORLD.camera.y);
+
+            // Floor Grid
+            drawGrid();
+
+            // World Objects
+            WORLD.map.forEach(b => {
+                ctx.fillStyle = b.type === 'metal' ? '#0f172a' : '#1e293b';
+                ctx.fillRect(b.x, b.y, SETTINGS.TILE_SIZE, SETTINGS.TILE_SIZE);
+                ctx.strokeStyle = '#334155';
+                ctx.lineWidth = 1;
+                ctx.strokeRect(b.x, b.y, SETTINGS.TILE_SIZE, SETTINGS.TILE_SIZE);
+                if (b.type === 'box') {
+                    ctx.beginPath(); ctx.moveTo(b.x+10, b.y+10); ctx.lineTo(b.x+54, b.y+54); ctx.stroke();
+                }
+            });
+
+            // Particles
+            WORLD.particles.forEach(p => {
+                ctx.globalAlpha = p.a;
+                ctx.fillStyle = p.c;
+                ctx.beginPath(); ctx.arc(p.x, p.y, p.s, 0, Math.PI*2); ctx.fill();
+            });
+            ctx.globalAlpha = 1;
+
+            // Bullets
+            WORLD.bullets.forEach(b => {
+                ctx.shadowBlur = 12;
+                ctx.shadowColor = b.color;
+                ctx.fillStyle = "#fff";
+                ctx.beginPath(); ctx.arc(b.x, b.y, 4, 0, Math.PI*2); ctx.fill();
+                ctx.shadowBlur = 0;
+            });
+
+            // AI Units
+            WORLD.enemies.forEach(ai => {
+                ctx.save();
+                ctx.translate(ai.x, ai.y);
+                ctx.rotate(ai.angle);
+                // Body
+                ctx.fillStyle = ai.type === 'ELITE' ? '#991b1b' : SETTINGS.RED;
+                ctx.beginPath(); ctx.moveTo(20, 0); ctx.lineTo(-15, -18); ctx.lineTo(-15, 18); ctx.closePath(); ctx.fill();
+                ctx.strokeStyle = '#fff'; ctx.lineWidth = 1; ctx.stroke();
+                // Glow
+                ctx.fillStyle = '#fff'; ctx.fillRect(6, -2, 4, 4);
+                ctx.restore();
+                // HP Bar
+                ctx.fillStyle = '#000'; ctx.fillRect(ai.x-20, ai.y-30, 40, 4);
+                ctx.fillStyle = '#f87171'; ctx.fillRect(ai.x-20, ai.y-30, 40*(ai.hp/ai.maxHp), 4);
+            });
+
+            // Players
+            if (WORLD.tm) drawUnit(WORLD.tm.x, WORLD.tm.y, WORLD.tm.angle, '#60a5fa', 'TEAMMATE');
+            drawUnit(WORLD.me.x, WORLD.me.y, WORLD.me.angle, SETTINGS.BLUE, 'YOU');
+
+            ctx.restore();
+        }
+
+        function drawUnit(x, y, angle, color, label) {
+            ctx.save();
+            ctx.translate(x, y);
+            ctx.rotate(angle);
+            // Circle body
+            ctx.shadowBlur = 20; ctx.shadowColor = color;
+            ctx.fillStyle = color;
+            ctx.beginPath(); ctx.arc(0, 0, 20, 0, Math.PI*2); ctx.fill();
+            ctx.strokeStyle = '#fff'; ctx.lineWidth = 2; ctx.stroke();
+            ctx.shadowBlur = 0;
+            // Gun
+            ctx.fillStyle = '#000'; ctx.fillRect(15, -5, 35, 10);
+            ctx.fillStyle = color; ctx.fillRect(45, -3, 5, 6);
+            ctx.restore();
+            // Label
+            ctx.fillStyle = '#fff'; ctx.font = 'bold 12px Orbitron'; ctx.textAlign = 'center';
+            ctx.fillText(label, x, y - 40);
+        }
+
+        function drawGrid() {
+            ctx.strokeStyle = 'rgba(255,255,255,0.03)';
+            const gap = SETTINGS.TILE_SIZE;
+            const limit = SETTINGS.MAP_SIZE * gap;
+            for(let i=0; i<=limit; i+=gap) {
+                ctx.beginPath(); ctx.moveTo(i, 0); ctx.lineTo(i, limit); ctx.stroke();
+                ctx.beginPath(); ctx.moveTo(0, i); ctx.lineTo(limit, i); ctx.stroke();
+            }
+        }
+
+        /**
+         * 7. VFX SYSTEM
+         */
+        function updateParticles() {
+            for(let i=WORLD.particles.length-1; i>=0; i--) {
+                const p = WORLD.particles[i];
+                p.x += p.vx; p.y += p.vy; p.a -= 0.03;
+                if (p.a <= 0) WORLD.particles.splice(i, 1);
+            }
+        }
+
+        function spawnMuzzle(x, y, angle) {
+            for(let i=0; i<5; i++) {
+                WORLD.particles.push({
+                    x, y, vx: Math.cos(angle+(Math.random()-0.5))*6, vy: Math.sin(angle+(Math.random()-0.5))*6,
+                    s: Math.random()*3+1, c: SETTINGS.BLUE, a: 1
+                });
+            }
+        }
+
+        function spawnImpact(x, y, color) {
+            for(let i=0; i<8; i++) {
+                WORLD.particles.push({
+                    x, y, vx: (Math.random()-0.5)*10, vy: (Math.random()-0.5)*10,
+                    s: Math.random()*4+1, c: color, a: 1
+                });
+            }
+        }
+
+        function spawnBlood(x, y) {
+            for(let i=0; i<10; i++) {
+                WORLD.particles.push({
+                    x, y, vx: (Math.random()-0.5)*6, vy: (Math.random()-0.5)*6,
+                    s: Math.random()*5+2, c: SETTINGS.RED, a: 1
+                });
+            }
+        }
+
+        /**
+         * 8. UI & UTILITIES
+         */
+        function refreshUI() {
+            document.getElementById('hp-bar').style.width = WORLD.me.hp + '%';
+            document.getElementById('hud-level').innerText = WORLD.me.level.toString().padStart(2, '0');
+            document.getElementById('hud-enemies').innerText = WORLD.enemies.length.toString().padStart(3, '0');
+            document.getElementById('coord-display').innerText = `X: ${Math.floor(WORLD.me.x)} Y: ${Math.floor(WORLD.me.y)}`;
+        }
+
+        function triggerLevelEffects() {
+            WORLD.me.hp = 100;
+            const toast = document.getElementById('level-toast');
+            toast.style.opacity = '1';
+            setTimeout(() => toast.style.opacity = '0', 2000);
+        }
+
+        function logStatus(msg) {
+            document.getElementById('lobby-status').innerText = "SYSTEM: " + msg;
+        }
+
+        // EVENT LISTENERS
+        window.addEventListener('resize', () => { canvas.width = window.innerWidth; canvas.height = window.innerHeight; });
+        canvas.width = window.innerWidth; canvas.height = window.innerHeight;
+        
+        window.addEventListener('keydown', e => WORLD.keys[e.key] = true);
+        window.addEventListener('keyup', e => WORLD.keys[e.key] = false);
+        window.addEventListener('mousemove', e => { WORLD.mouse.x = e.clientX; WORLD.mouse.y = e.clientY; });
+        window.addEventListener('mousedown', () => WORLD.mouse.down = true);
+        window.addEventListener('mouseup', () => WORLD.mouse.down = false);
+
+        // Bootstrap
+        initNetwork();
+
+    </script>
+</body>
+</html>
