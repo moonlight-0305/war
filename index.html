@@ -3,2322 +3,1200 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>2D Rivals - P2P Local Duel</title>
-    <script src="https://unpkg.com/peerjs@1.5.1/dist/peerjs.min.js">
-    </script>
+    <title>2D 멀티플레이어 미로 파괴 탈출 RPG - 찐 최종 인피니티 에디션</title>
+    <!-- 외부 라이브러리: PeerJS (P2P 통신용) -->
+    <script src="https://unpkg.com/peerjs@1.5.2/dist/peerjs.min.js"></script>
     <style>
+        /* 1. 디자인 시스템 및 테마 정의 */
         :root {
-            --bg: #1a1a2e;
-            --panel-bg: #16213e;
-            --accent: #e94560;
-            --gold: #f0c040;
-            --text: #eee;
-            --text-secondary: #aaa;
-            --btn-bg: #0f3460;
-            --btn-hover: #1a508b;
-            --border: #2a2a4a;
-            --health-green: #4eff4e;
-            --health-red: #ff4444;
-            --shield-blue: #4ea8ff;
+            --bg-dark: #0f172a;
+            --panel-bg: #1e293b;
+            --accent-color: #38bdf8;
+            --accent-hover: #0ea5e9;
+            --danger-color: #ef4444;
+            --success-color: #22c55e;
+            --text-main: #f8fafc;
+            --text-muted: #94a3b8;
+            --gold: #eab308;
+            --purple: #a855f7;
         }
 
         * {
+            box-sizing: border-box;
             margin: 0;
             padding: 0;
-            box-sizing: border-box;
+            font-family: 'Segoe UI', Roboto, Helvetica, Arial, sans-serif;
+            user-select: none;
         }
 
         body {
-            background: #0a0a14;
+            background-color: var(--bg-dark);
+            color: var(--text-main);
+            overflow: hidden;
+            width: 100vw;
+            height: 100vh;
             display: flex;
             justify-content: center;
             align-items: center;
-            height: 100vh;
-            font-family: 'Segoe UI', 'Poppins', 'Noto Sans KR', sans-serif;
-            overflow: hidden;
-            user-select: none;
-            -webkit-user-select: none;
-            -webkit-tap-highlight-color: transparent;
         }
 
-        #game-wrapper {
-            position: relative;
-            width: 1000px;
-            height: 600px;
-            background: #000;
+        /* 2. 대기실 (Lobby) UI 레이아웃 */
+        #lobby-container {
+            width: 500px;
+            background: var(--panel-bg);
+            border: 2px solid var(--accent-color);
             border-radius: 16px;
-            overflow: hidden;
-            box-shadow: 0 0 60px rgba(233, 68, 96, 0.3), 0 0 120px rgba(15, 52, 96, 0.4), 0 8px 32px rgba(0, 0, 0, 0.6);
-            border: 2px solid #2a2a4a;
+            padding: 30px;
+            box-shadow: 0 10px 30px rgba(0, 0, 0, 0.5);
+            transition: all 0.3s ease;
+            z-index: 10;
+        }
+
+        .lobby-title {
+            text-align: center;
+            font-size: 28px;
+            margin-bottom: 25px;
+            color: var(--accent-color);
+            text-transform: uppercase;
+            letter-spacing: 2px;
+            text-shadow: 0 0 10px rgba(56, 189, 248, 0.4);
+        }
+
+        .input-group {
+            margin-bottom: 20px;
+        }
+
+        .input-group label {
+            display: block;
+            margin-bottom: 8px;
+            font-size: 14px;
+            color: var(--text-muted);
+        }
+
+        .input-group input {
+            width: 100%;
+            padding: 12px;
+            background: #0f172a;
+            border: 1px solid #475569;
+            border-radius: 8px;
+            color: #fff;
+            font-size: 16px;
+            outline: none;
+            text-align: center;
+            letter-spacing: 1px;
+        }
+
+        .input-group input:focus {
+            border-color: var(--accent-color);
+            box-shadow: 0 0 8px rgba(56, 189, 248, 0.3);
+        }
+
+        .btn {
+            width: 100%;
+            padding: 14px;
+            background: var(--accent-color);
+            border: none;
+            border-radius: 8px;
+            color: var(--bg-dark);
+            font-size: 16px;
+            font-weight: bold;
+            cursor: pointer;
+            transition: background 0.2s, transform 0.1s;
+            margin-bottom: 12px;
+        }
+
+        .btn:hover {
+            background: var(--accent-hover);
+        }
+
+        .btn:active {
+            transform: scale(0.98);
+        }
+
+        .btn-secondary {
+            background: #475569;
+            color: white;
+        }
+
+        .btn-secondary:hover {
+            background: #64748b;
+        }
+
+        .divider {
+            text-align: center;
+            margin: 15px 0;
+            color: var(--text-muted);
+            position: relative;
+        }
+
+        .divider::before, .divider::after {
+            content: "";
+            position: absolute;
+            top: 50%;
+            width: 40%;
+            height: 1px;
+            background: #334155;
+        }
+
+        .divider::before { left: 0; }
+        .divider::after { right: 0; }
+
+        .status-message {
+            margin-top: 15px;
+            padding: 10px;
+            border-radius: 6px;
+            font-size: 14px;
+            text-align: center;
+            display: none;
+            background: rgba(255, 255, 255, 0.05);
+        }
+
+        #waiting-room {
+            display: none;
+        }
+
+        .player-list {
+            margin: 20px 0;
+            background: rgba(0,0,0,0.2);
+            border-radius: 8px;
+            padding: 15px;
+            max-height: 150px;
+            overflow-y: auto;
+        }
+
+        .player-item {
+            display: flex;
+            justify-content: space-between;
+            padding: 8px 0;
+            border-bottom: 1px solid #334155;
+        }
+
+        .player-item:last-child { border-bottom: none; }
+        .player-status { font-weight: bold; }
+        .status-ready { color: var(--success-color); }
+
+        /* 3. 인게임 HUD 및 캔버스 레이아웃 */
+        #game-container {
+            display: none;
+            position: relative;
+            width: 100vw;
+            height: 100vh;
         }
 
         canvas {
+            background: #020617;
             display: block;
-            width: 100%;
-            height: 100%;
-            border-radius: 14px;
-            cursor: crosshair;
         }
 
-        /* 오버레이 패널 */
-        .overlay {
-            position: absolute;
-            top: 0;
-            left: 0;
-            width: 100%;
-            height: 100%;
-            pointer-events: none;
-            z-index: 10;
-        }
-        .overlay>* {
-            pointer-events: auto;
-        }
-
-        /* 메인 메뉴 */
-        #main-menu {
-            position: absolute;
-            top: 50%;
-            left: 50%;
-            transform: translate(-50%, -50%);
-            background: var(--panel-bg);
-            border: 2px solid var(--border);
-            border-radius: 20px;
-            padding: 40px 36px;
-            text-align: center;
-            min-width: 420px;
-            box-shadow: 0 20px 60px rgba(0, 0, 0, 0.7);
-            display: flex;
-            flex-direction: column;
-            gap: 18px;
-            z-index: 20;
-        }
-        #main-menu.hidden {
-            display: none;
-        }
-        #main-menu h1 {
-            font-size: 2.6em;
-            font-weight: 900;
-            letter-spacing: 2px;
-            color: #fff;
-            text-shadow: 0 0 20px var(--accent), 0 0 40px var(--accent);
-            margin-bottom: 6px;
-        }
-        #main-menu h1 span {
-            color: var(--accent);
-        }
-        #main-menu .subtitle {
-            font-size: 0.85em;
-            color: var(--text-secondary);
-            letter-spacing: 4px;
-            text-transform: uppercase;
-            margin-bottom: 8px;
-        }
-        #main-menu .menu-btn {
-            padding: 14px 28px;
-            font-size: 1.1em;
-            font-weight: 700;
-            border: 2px solid var(--border);
-            border-radius: 12px;
-            cursor: pointer;
-            background: var(--btn-bg);
-            color: var(--text);
-            transition: all 0.25s;
-            letter-spacing: 1px;
-            position: relative;
-            overflow: hidden;
-        }
-        #main-menu .menu-btn:hover {
-            background: var(--btn-hover);
-            border-color: var(--accent);
-            box-shadow: 0 0 25px rgba(233, 68, 96, 0.4);
-            transform: translateY(-2px);
-        }
-        #main-menu .menu-btn.accent {
-            background: var(--accent);
-            border-color: var(--accent);
-            color: #fff;
-            animation: pulse-btn 2s infinite;
-        }
-        @keyframes pulse-btn {
-            0%,
-            100% {
-                box-shadow: 0 0 10px rgba(233, 68, 96, 0.5);
-            }
-            50% {
-                box-shadow: 0 0 30px rgba(233, 68, 96, 0.9);
-            }
-        }
-        #main-menu .code-input {
-            padding: 12px 16px;
-            font-size: 1.3em;
-            font-weight: 700;
-            letter-spacing: 6px;
-            text-align: center;
-            border: 2px solid var(--border);
-            border-radius: 10px;
-            background: #0d0d1f;
-            color: #fff;
-            width: 160px;
-            margin: 0 auto;
-            outline: none;
-            transition: border-color 0.3s;
-        }
-        #main-menu .code-input:focus {
-            border-color: var(--accent);
-            box-shadow: 0 0 15px rgba(233, 68, 96, 0.3);
-        }
-        .divider-text {
-            color: var(--text-secondary);
-            font-size: 0.8em;
-            letter-spacing: 2px;
-            display: flex;
-            align-items: center;
-            gap: 12px;
-            justify-content: center;
-        }
-        .divider-text::before,
-        .divider-text::after {
-            content: '';
-            flex: 1;
-            height: 1px;
-            background: var(--border);
-        }
-
-        /* 대기실 */
-        #waiting-room {
-            position: absolute;
-            top: 50%;
-            left: 50%;
-            transform: translate(-50%, -50%);
-            background: var(--panel-bg);
-            border: 2px solid var(--border);
-            border-radius: 20px;
-            padding: 36px 32px;
-            text-align: center;
-            min-width: 380px;
-            box-shadow: 0 20px 60px rgba(0, 0, 0, 0.7);
-            z-index: 20;
-            display: none;
-            flex-direction: column;
-            gap: 16px;
-        }
-        #waiting-room.visible {
-            display: flex;
-        }
-        #waiting-room h3 {
-            font-size: 1.6em;
-            color: #fff;
-            letter-spacing: 1px;
-        }
-        #waiting-room .room-code-display {
-            font-size: 3.5em;
-            font-weight: 900;
-            letter-spacing: 12px;
-            color: var(--gold);
-            text-shadow: 0 0 30px rgba(240, 192, 64, 0.7);
-            background: #0d0d1f;
-            border-radius: 12px;
-            padding: 16px 20px;
-            border: 2px dashed var(--gold);
-        }
-        #waiting-room .waiting-text {
-            color: var(--text-secondary);
-            animation: blink 1.4s infinite;
-            font-size: 1em;
-            letter-spacing: 1px;
-        }
-        @keyframes blink {
-            0%,
-            100% {
-                opacity: 1;
-            }
-            50% {
-                opacity: 0.35;
-            }
-        }
-        #waiting-room .player-indicator {
-            display: flex;
-            gap: 20px;
-            justify-content: center;
-            font-size: 0.9em;
-            color: #aaa;
-        }
-        #waiting-room .player-dot {
-            width: 12px;
-            height: 12px;
-            border-radius: 50%;
-            display: inline-block;
-            margin-right: 6px;
-        }
-        .dot-connected {
-            background: #4eff4e;
-            box-shadow: 0 0 10px #4eff4e;
-        }
-        .dot-waiting {
-            background: #666;
-            animation: blink 1s infinite;
-        }
-        #waiting-room .cancel-btn {
-            padding: 10px 20px;
-            background: #333;
-            border: 1px solid #555;
-            border-radius: 8px;
-            color: #ccc;
-            cursor: pointer;
-            font-size: 0.9em;
-            transition: all 0.2s;
-        }
-        #waiting-room .cancel-btn:hover {
-            background: #444;
-            border-color: #888;
-        }
-        #waiting-room .start-btn {
-            padding: 12px 24px;
-            background: var(--accent);
-            border: none;
-            border-radius: 10px;
-            color: #fff;
-            cursor: pointer;
-            font-size: 1.1em;
-            font-weight: 700;
-            letter-spacing: 2px;
-            transition: all 0.2s;
-            display: none;
-        }
-        #waiting-room .start-btn.visible {
-            display: inline-block;
-            animation: pulse-btn 1.5s infinite;
-        }
-        #waiting-room .start-btn:hover {
-            transform: scale(1.05);
-            box-shadow: 0 0 30px rgba(233, 68, 96, 0.6);
-        }
-
-        /* 무기 선택 패널 */
-        #weapon-select {
-            position: absolute;
-            bottom: 20px;
-            left: 50%;
-            transform: translateX(-50%);
-            background: rgba(22, 33, 62, 0.95);
-            border: 2px solid var(--border);
-            border-radius: 16px;
-            padding: 16px 20px;
-            z-index: 15;
-            display: none;
-            flex-wrap: wrap;
-            gap: 8px;
-            max-width: 700px;
-            justify-content: center;
-            box-shadow: 0 10px 40px rgba(0, 0, 0, 0.8);
-            backdrop-filter: blur(10px);
-        }
-        #weapon-select.visible {
-            display: flex;
-        }
-        #weapon-select h4 {
-            width: 100%;
-            text-align: center;
-            color: #fff;
-            font-size: 1em;
-            letter-spacing: 2px;
-            margin-bottom: 4px;
-        }
-        #weapon-select .weapon-card {
-            width: 56px;
-            height: 72px;
-            background: #1a1a35;
-            border: 2px solid #333;
-            border-radius: 10px;
-            cursor: pointer;
-            display: flex;
-            flex-direction: column;
-            align-items: center;
-            justify-content: center;
-            gap: 4px;
-            transition: all 0.2s;
-            position: relative;
-            color: #ccc;
-            font-size: 0.7em;
-            font-weight: 600;
-            text-align: center;
-        }
-        #weapon-select .weapon-card:hover {
-            border-color: var(--accent);
-            background: #252545;
-            transform: translateY(-4px);
-            box-shadow: 0 8px 20px rgba(233, 68, 96, 0.4);
-            color: #fff;
-        }
-        #weapon-select .weapon-card.selected {
-            border-color: var(--gold);
-            box-shadow: 0 0 20px rgba(240, 192, 64, 0.6);
-            background: #2a2a20;
-            color: var(--gold);
-        }
-        #weapon-select .weapon-icon {
-            font-size: 1.8em;
-            line-height: 1;
-        }
-        #weapon-select .timer-bar {
-            width: 100%;
-            height: 4px;
-            background: #333;
-            border-radius: 2px;
-            margin-top: 4px;
-        }
-        #weapon-select .timer-fill {
-            height: 100%;
-            background: var(--accent);
-            border-radius: 2px;
-            transition: width 0.3s linear;
-        }
-
-        /* 어드민 패널 */
-        #admin-panel {
-            position: absolute;
-            bottom: 80px;
-            right: 20px;
-            background: rgba(10, 10, 20, 0.96);
-            border: 2px solid #ff4444;
-            border-radius: 14px;
-            padding: 20px;
-            z-index: 25;
-            display: none;
-            flex-direction: column;
-            gap: 10px;
-            min-width: 220px;
-            box-shadow: 0 0 30px rgba(255, 0, 0, 0.5);
-            backdrop-filter: blur(10px);
-        }
-        #admin-panel.visible {
-            display: flex;
-        }
-        #admin-panel h4 {
-            color: #ff4444;
-            text-align: center;
-            letter-spacing: 2px;
-            font-size: 0.9em;
-            margin-bottom: 4px;
-        }
-        #admin-panel label {
-            color: #ccc;
-            font-size: 0.75em;
-            display: flex;
-            align-items: center;
-            gap: 8px;
-            cursor: pointer;
-        }
-        #admin-panel input[type="checkbox"] {
-            accent-color: #ff4444;
-        }
-        #admin-panel input[type="range"] {
-            width: 100%;
-            accent-color: #ff4444;
-        }
-        #admin-panel button {
-            padding: 8px 14px;
-            background: #ff4444;
-            border: none;
-            border-radius: 6px;
-            color: #fff;
-            cursor: pointer;
-            font-weight: 700;
-            letter-spacing: 1px;
-            font-size: 0.8em;
-            transition: all 0.2s;
-        }
-        #admin-panel button:hover {
-            background: #ff6666;
-            box-shadow: 0 0 15px rgba(255, 68, 68, 0.5);
-        }
-        .admin-trigger {
-            position: absolute;
-            bottom: 10px;
-            right: 10px;
-            width: 44px;
-            height: 44px;
-            z-index: 14;
-            cursor: default;
-            opacity: 0;
-        }
-
-        /* HUD */
         #hud {
             position: absolute;
-            top: 12px;
-            left: 16px;
-            right: 16px;
-            display: none;
-            justify-content: space-between;
-            z-index: 12;
+            top: 20px;
+            left: 20px;
             pointer-events: none;
-        }
-        #hud.visible {
-            display: flex;
-        }
-        .player-hud {
             display: flex;
             flex-direction: column;
-            gap: 4px;
-            align-items: center;
-        }
-        .player-hud .name-tag {
-            font-weight: 700;
-            font-size: 0.85em;
-            letter-spacing: 2px;
-            color: #fff;
-            text-shadow: 0 0 8px rgba(255, 255, 255, 0.4);
-        }
-        .health-bar-outer {
-            width: 240px;
-            height: 14px;
-            background: #1a1a1a;
-            border-radius: 7px;
-            overflow: hidden;
-            border: 1px solid #444;
-        }
-        .health-bar-inner {
-            height: 100%;
-            border-radius: 6px;
-            transition: width 0.3s;
-        }
-        .health-p1 {
-            background: linear-gradient(90deg, #4eff4e, #2ecc40);
-        }
-        .health-p2 {
-            background: linear-gradient(90deg, #ff4444, #e94560);
-        }
-        .round-indicator {
-            position: absolute;
-            top: 16px;
-            left: 50%;
-            transform: translateX(-50%);
-            display: flex;
-            gap: 8px;
-            z-index: 12;
-            pointer-events: none;
-        }
-        .round-dot {
-            width: 14px;
-            height: 14px;
-            border-radius: 50%;
-            border: 2px solid #555;
-            background: #1a1a1a;
-            transition: all 0.3s;
-        }
-        .round-dot.won-p1 {
-            background: #4eff4e;
-            border-color: #4eff4e;
-            box-shadow: 0 0 10px #4eff4e;
-        }
-        .round-dot.won-p2 {
-            background: #ff4444;
-            border-color: #ff4444;
-            box-shadow: 0 0 10px #ff4444;
-        }
-        .round-dot.current {
-            border-color: #fff;
-            animation: pulse-dot 0.8s infinite;
-        }
-        @keyframes pulse-dot {
-            0%,
-            100% {
-                box-shadow: 0 0 5px #fff;
-            }
-            50% {
-                box-shadow: 0 0 20px #fff;
-            }
+            gap: 10px;
+            font-family: monospace;
+            z-index: 50;
         }
 
-        /* 결과 화면 */
-        #result-screen {
+        .hud-panel {
+            background: rgba(15, 23, 42, 0.85);
+            padding: 12px 20px;
+            border-radius: 8px;
+            border-left: 4px solid var(--accent-color);
+            box-shadow: 0 4px 15px rgba(0,0,0,0.3);
+            backdrop-filter: blur(4px);
+        }
+
+        .hud-title {
+            font-size: 12px;
+            color: var(--text-muted);
+            text-transform: uppercase;
+        }
+
+        .hud-value {
+            font-size: 20px;
+            font-weight: bold;
+            color: #fff;
+        }
+
+        .weapon-rpg { border-left-color: var(--gold); }
+        .weapon-rpg .hud-value { color: var(--gold); }
+        .weapon-nuke { border-left-color: var(--purple); animation: nuke-pulse 1s infinite alternate; }
+        .weapon-nuke .hud-value { color: var(--purple); text-shadow: 0 0 10px rgba(168, 85, 247, 0.6); }
+
+        @keyframes nuke-pulse {
+            from { border-left-color: var(--purple); }
+            to { border-left-color: var(--danger-color); }
+        }
+
+        .level-panel { border-left-color: var(--success-color); }
+        .level-panel .hud-value { color: var(--success-color); }
+
+        #crosshair-guide {
             position: absolute;
-            top: 50%;
+            top: 20px;
+            right: 20px;
+            background: rgba(15, 23, 42, 0.8);
+            padding: 10px 15px;
+            border-radius: 6px;
+            font-size: 13px;
+            color: var(--text-muted);
+            border: 1px solid #334155;
+            pointer-events: none;
+            z-index: 50;
+        }
+
+        #game-notifier {
+            position: absolute;
+            top: 20%;
             left: 50%;
             transform: translate(-50%, -50%);
-            background: rgba(22, 33, 62, 0.97);
-            border: 2px solid var(--gold);
-            border-radius: 20px;
-            padding: 32px 40px;
-            text-align: center;
-            z-index: 20;
-            display: none;
-            flex-direction: column;
-            gap: 14px;
-            box-shadow: 0 20px 50px rgba(0, 0, 0, 0.8);
-        }
-        #result-screen.visible {
-            display: flex;
-        }
-        #result-screen h2 {
-            font-size: 2em;
-            letter-spacing: 2px;
-            color: var(--gold);
-        }
-        #result-screen .result-btn {
-            padding: 12px 24px;
-            background: var(--accent);
-            border: none;
-            border-radius: 10px;
+            background: rgba(0, 0, 0, 0.85);
             color: #fff;
-            cursor: pointer;
-            font-weight: 700;
-            letter-spacing: 2px;
-            transition: all 0.2s;
-        }
-        #result-screen .result-btn:hover {
-            transform: scale(1.05);
-            box-shadow: 0 0 25px rgba(233, 68, 96, 0.5);
+            padding: 15px 40px;
+            border-radius: 30px;
+            font-size: 24px;
+            font-weight: bold;
+            border: 2px solid var(--gold);
+            box-shadow: 0 0 20px rgba(234, 179, 8, 0.3);
+            pointer-events: none;
+            opacity: 0;
+            transition: opacity 0.3s ease;
+            z-index: 100;
+            text-align: center;
         }
 
-        /* 반응형 */
-        @media (max-width: 1050px) {
-            #game-wrapper {
-                width: 96vw;
-                height: 56vw;
-                max-height: 600px;
-                border-radius: 10px;
-            }
-            canvas {
-                border-radius: 8px;
-            }
-            #main-menu {
-                min-width: 300px;
-                padding: 24px 20px;
-                gap: 12px;
-            }
-            #main-menu h1 {
-                font-size: 1.8em;
-            }
-            #weapon-select {
-                max-width: 90vw;
-                gap: 4px;
-                padding: 10px;
-            }
-            #weapon-select .weapon-card {
-                width: 42px;
-                height: 56px;
-                font-size: 0.6em;
-            }
-            #weapon-select .weapon-icon {
-                font-size: 1.3em;
-            }
-            .health-bar-outer {
-                width: 140px;
-                height: 10px;
-            }
+        #game-notifier.active { opacity: 1; }
+
+        /* 결과 창 */
+        #result-screen {
+            display: none;
+            position: absolute;
+            inset: 0;
+            background: rgba(15, 23, 42, 0.95);
+            z-index: 200;
+            flex-direction: column;
+            justify-content: center;
+            align-items: center;
+        }
+
+        .result-box {
+            text-align: center;
+            max-width: 500px;
+            padding: 40px;
+            border-radius: 16px;
+            border: 2px solid var(--success-color);
+            background: var(--panel-bg);
+            box-shadow: 0 0 40px rgba(34, 197, 94, 0.2);
+        }
+
+        .result-title {
+            font-size: 42px;
+            color: var(--success-color);
+            margin-bottom: 20px;
+            text-transform: uppercase;
+            font-weight: 900;
+        }
+
+        /* 우측 하단 초미세 어드민 버튼 이스터에그 스타일 */
+        #secret-admin-trigger {
+            position: absolute;
+            bottom: 5px;
+            right: 5px;
+            font-size: 9px;
+            color: #020617; /* 완전히 화면 구석 배경색에 매립하여 완벽 은폐 */
+            cursor: pointer;
+            z-index: 9999;
+            opacity: 0.3;
+            transition: opacity 0.2s;
+        }
+        #secret-admin-trigger:hover {
+            opacity: 1;
+            color: var(--danger-color);
         }
     </style>
 </head>
 <body>
 
-    <div id="game-wrapper">
-        <!-- 캔버스 -->
-        <canvas id="gameCanvas"></canvas>
-
-        <!-- 메인 메뉴 -->
-        <div id="main-menu">
-            <h1>2D <span>RIVALS</span></h1>
-            <p class="subtitle">P2P Local Duel Arena</p>
-            <button class="menu-btn accent" id="btn-host">🎮 방 만들기 (Host)</button>
-            <div class="divider-text">또는</div>
-            <input type="text" class="code-input" id="input-room-code" placeholder="----" maxlength="4" autocomplete="off">
-            <button class="menu-btn" id="btn-join">🔗 방 참가하기 (Join)</button>
-            <p style="color:#666;font-size:0.7em;margin-top:4px;">상대방의 4자리 코드를 입력하세요</p>
+    <!-- [MODULE 1: LOBBY UI] -->
+    <div id="lobby-container">
+        <div id="lobby-main">
+            <h1 class="lobby-title">Maze Breaker 2D</h1>
+            <div class="input-group">
+                <label for="nickname-input">플레이어 닉네임</label>
+                <input type="text" id="nickname-input" placeholder="닉네임을 입력하세요..." maxlength="10" value="플레이어1">
+            </div>
+            <button id="btn-create-mode" class="btn">방 만들기 (호스트)</button>
+            <div class="divider">또는</div>
+            <div class="input-group">
+                <label for="room-code-input">참여할 4자리 코드 입력</label>
+                <input type="text" id="room-code-input" placeholder="예: 7A9F" maxlength="4" style="text-transform: uppercase;">
+            </div>
+            <button id="btn-join-mode" class="btn btn-secondary">지정된 방 참여하기</button>
+            <div id="lobby-status" class="status-message"></div>
         </div>
 
-        <!-- 대기실 -->
         <div id="waiting-room">
-            <h3>⏳ 대기실</h3>
-            <div class="room-code-display" id="room-code-show">----</div>
-            <p class="waiting-text" id="waiting-msg">상대방을 기다리는 중...</p>
-            <div class="player-indicator">
-                <span><span class="player-dot dot-connected"></span> 나</span>
-                <span><span class="player-dot" id="opponent-dot"></span> 상대방</span>
+            <h1 class="lobby-title">대기실</h1>
+            <div style="text-align:center; margin-bottom: 15px;">
+                <span style="color: var(--text-muted);">방 코드: </span>
+                <span id="display-room-code" style="font-size: 24px; font-weight: bold; color: var(--accent-color); letter-spacing: 2px;">----</span>
             </div>
-            <button class="start-btn" id="btn-start-game">⚔️ 게임 시작!</button>
-            <button class="cancel-btn" id="btn-cancel-wait">취소</button>
-        </div>
-
-        <!-- 무기 선택 -->
-        <div id="weapon-select">
-            <h4>🔥 무기 선택 (클릭)</h4>
-            <div id="weapon-cards-container" style="display:flex;flex-wrap:wrap;gap:8px;justify-content:center;"></div>
-            <div class="timer-bar"><div class="timer-fill" id="weapon-timer-fill"></div></div>
-        </div>
-
-        <!-- HUD -->
-        <div id="hud">
-            <div class="player-hud">
-                <span class="name-tag" style="color:#4eff4e;">PLAYER 1</span>
-                <div class="health-bar-outer"><div class="health-bar-inner health-p1" id="hp-bar-p1" style="width:100%;"></div></div>
-                <span style="color:#aaa;font-size:0.7em;" id="weapon-name-p1">권총</span>
+            <div class="player-list" id="ui-player-list"></div>
+            <div id="host-controls" style="display: none;">
+                <button id="btn-start-game" class="btn" style="background: var(--success-color); color: #fff;">게임 시작하기</button>
             </div>
-            <div style="display:flex;align-items:center;gap:6px;" id="round-dots-container"></div>
-            <div class="player-hud">
-                <span class="name-tag" style="color:#ff4444;">PLAYER 2</span>
-                <div class="health-bar-outer"><div class="health-bar-inner health-p2" id="hp-bar-p2" style="width:100%;"></div></div>
-                <span style="color:#aaa;font-size:0.7em;" id="weapon-name-p2">권총</span>
+            <div id="client-controls" style="display: none; text-align: center; color: var(--gold); padding: 10px; font-style: italic;">
+                방장이 게임을 시작하기를 기다리는 중...
             </div>
+            <button id="btn-leave-lobby" class="btn btn-secondary" style="margin-top: 10px;">나가기</button>
         </div>
-
-        <!-- 결과 화면 -->
-        <div id="result-screen">
-            <h2 id="result-text">🏆 승리!</h2>
-            <p style="color:#ccc;" id="result-detail"></p>
-            <button class="result-btn" id="btn-play-again">🔄 다시 하기</button>
-            <button class="result-btn" style="background:#444;" id="btn-back-menu">🏠 메뉴로</button>
-        </div>
-
-        <!-- 어드민 패널 -->
-        <div id="admin-panel">
-            <h4>🛡️ ADMIN PANEL</h4>
-            <label><input type="checkbox" id="admin-god-mode"> 무적 모드 (P1)</label>
-            <label><input type="checkbox" id="admin-one-shot"> 원킬 모드</label>
-            <label><input type="checkbox" id="admin-no-cooldown"> 무한 연사</label>
-            <label><input type="checkbox" id="admin-show-hitboxes"> 히트박스 표시</label>
-            <label>P1 체력: <input type="range" id="admin-hp-p1" min="1" max="200" value="100"></label>
-            <label>P2 체력: <input type="range" id="admin-hp-p2" min="1" max="200" value="100"></label>
-            <button id="admin-reset-round">라운드 리셋</button>
-            <button id="admin-skip-round">라운드 스킵 (P1 승)</button>
-            <button id="admin-close">닫기</button>
-        </div>
-        <!-- 어드민 트리거 영역 (투명) -->
-        <div class="admin-trigger" id="admin-trigger-zone"></div>
     </div>
 
+    <!-- [MODULE 2: INGAME HUD & CANVAS] -->
+    <div id="game-container">
+        <div id="hud">
+            <div class="hud-panel level-panel">
+                <div class="hud-title">현재 스테이지</div>
+                <div class="hud-value" id="hud-level">LV. 1 / 10</div>
+            </div>
+            <div class="hud-panel">
+                <div class="hud-title">경고 상태</div>
+                <div class="hud-value" id="hud-status" style="color: var(--danger-color);">괴물 추격 구역!</div>
+            </div>
+            <div class="hud-panel weapon-rpg" id="hud-weapon-panel">
+                <div class="hud-title">장착 무기</div>
+                <div class="hud-value" id="hud-weapon">맨손 (상자 파괴 가능)</div>
+            </div>
+            <div class="hud-panel">
+                <div class="hud-title">연결 정보</div>
+                <div class="hud-value" id="hud-peers" style="font-size:14px;">연결 중..</div>
+            </div>
+        </div>
+        <div id="crosshair-guide">마우스 클릭: 무기 발사 | 우측 하단 구석 어드민 주의</div>
+        <div id="game-notifier">럭키 박스를 발견했습니다!</div>
+        <canvas id="gameCanvas"></canvas>
+        
+        <!-- 이스터에그 비밀 어드민 버튼 스위치 -->
+        <div id="secret-admin-trigger">어드민</div>
+    </div>
+
+    <!-- [MODULE 3: RESULT SCREEN] -->
+    <div id="result-screen">
+        <div class="result-box">
+            <div class="result-title">최종 탈출 성공!</div>
+            <div class="result-desc" id="result-text">축하합니다! 괴물들과 초대형 지옥 미로 단계를 전부 박살내고 완벽하게 탈출했습니다!</div>
+            <button class="btn" onclick="window.location.reload();">처음으로 돌아가기</button>
+        </div>
+    </div>
+
+    <!-- [CORE GAME ENGINE SCRIPTS] -->
     <script>
-        (function() {
-            // ==================== DOM 요소 ====================
-            const canvas = document.getElementById('gameCanvas');
-            const ctx = canvas.getContext('2d');
-            const wrapper = document.getElementById('game-wrapper');
+        // --- 글로벌 환경 설정 및 시스템 공간 정의 ---
+        const PEER_PREFIX = "MZBRK2D-"; 
+        const CELL_SIZE = 48; 
+        
+        const CELL_PATH = 0;
+        const CELL_WALL = 1;
+        const CELL_BOX = 2;
+        const CELL_EXIT = 3;
 
-            const mainMenu = document.getElementById('main-menu');
-            const btnHost = document.getElementById('btn-host');
-            const btnJoin = document.getElementById('btn-join');
-            const inputRoomCode = document.getElementById('input-room-code');
+        const G = {
+            peer: null,
+            conn: null,
+            isHost: false,
+            roomCode: '',
+            nickname: '플레이어',
+            
+            currentLevel: 1,
+            maxLevel: 10,
+            gridSize: 61, // [요청 반영] 초반 레벨부터 아주아주 큰 초대형 스케일(61x61) 기본 세팅
+            
+            gameState: 'LOBBY', 
+            players: {}, 
+            maze: [],    
+            projectiles: [], // {x, y, vx, vy, owner, isNuke}
+            particles: [],   
+            monsters: [],    // 괴물 엔티티 목록 배열: {id, x, y, hp, maxHp, speed}
+            
+            canvas: null,
+            ctx: null,
+            camera: { x: 0, y: 0 },
+            keys: {},
+            mouseX: 0,
+            mouseY: 0,
+            localId: null,
+            monsterIdCounter: 0
+        };
 
-            const waitingRoom = document.getElementById('waiting-room');
-            const roomCodeShow = document.getElementById('room-code-show');
-            const waitingMsg = document.getElementById('waiting-msg');
-            const opponentDot = document.getElementById('opponent-dot');
-            const btnStartGame = document.getElementById('btn-start-game');
-            const btnCancelWait = document.getElementById('btn-cancel-wait');
-
-            const weaponSelect = document.getElementById('weapon-select');
-            const weaponCardsContainer = document.getElementById('weapon-cards-container');
-            const weaponTimerFill = document.getElementById('weapon-timer-fill');
-
-            const hud = document.getElementById('hud');
-            const hpBarP1 = document.getElementById('hp-bar-p1');
-            const hpBarP2 = document.getElementById('hp-bar-p2');
-            const weaponNameP1 = document.getElementById('weapon-name-p1');
-            const weaponNameP2 = document.getElementById('weapon-name-p2');
-            const roundDotsContainer = document.getElementById('round-dots-container');
-
-            const resultScreen = document.getElementById('result-screen');
-            const resultText = document.getElementById('result-text');
-            const resultDetail = document.getElementById('result-detail');
-            const btnPlayAgain = document.getElementById('btn-play-again');
-            const btnBackMenu = document.getElementById('btn-back-menu');
-
-            const adminPanel = document.getElementById('admin-panel');
-            const adminTriggerZone = document.getElementById('admin-trigger-zone');
-            const adminGodMode = document.getElementById('admin-god-mode');
-            const adminOneShot = document.getElementById('admin-one-shot');
-            const adminNoCooldown = document.getElementById('admin-no-cooldown');
-            const adminShowHitboxes = document.getElementById('admin-show-hitboxes');
-            const adminHpP1 = document.getElementById('admin-hp-p1');
-            const adminHpP2 = document.getElementById('admin-hp-p2');
-            const adminResetRound = document.getElementById('admin-reset-round');
-            const adminSkipRound = document.getElementById('admin-skip-round');
-            const adminClose = document.getElementById('admin-close');
-
-            // ==================== 게임 상수 ====================
-            const CANVAS_W = 1000;
-            const CANVAS_H = 600;
-            const GRAVITY = 0.65;
-            const GROUND_Y = 500;
-            const PLAYER_SPEED = 5.5;
-            const JUMP_FORCE = -13;
-            const MAX_HEALTH = 100;
-            const ROUNDS_TO_WIN = 3;
-            const TOTAL_ROUNDS = 5;
-            const WEAPON_SELECT_TIME = 15; // 초
-
-            // ==================== 무기 정의 ====================
-            const WEAPONS = [
-                { id: 0, name: '권총', icon: '🔫', damage: 18, fireRate: 400, bulletSpeed: 12, bullets: 1, spread: 0.03,
-                    color: '#ffdd57', trailColor: '#ffaa00', knockback: 2, description: '기본 반자동 권총' },
-                { id: 1, name: '산탄총', icon: '💥', damage: 8, fireRate: 700, bulletSpeed: 9, bullets: 5, spread: 0.25,
-                    color: '#ff8866', trailColor: '#ff4400', knockback: 5, description: '넓은 산탄 퍼짐' },
-                { id: 2, name: '저격총', icon: '🎯', damage: 65, fireRate: 1500, bulletSpeed: 22, bullets: 1, spread: 0.0,
-                    color: '#ff4444', trailColor: '#ff0000', knockback: 8, description: '고위력 단발' },
-                { id: 3, name: '기관총', icon: '🔥', damage: 9, fireRate: 100, bulletSpeed: 14, bullets: 1, spread: 0.1,
-                    color: '#ff9933', trailColor: '#ff6600', knockback: 1, description: '빠른 연사' },
-                { id: 4, name: '로켓런처', icon: '🚀', damage: 45, fireRate: 1800, bulletSpeed: 7, bullets: 1, spread: 0.05,
-                    color: '#ff3366', trailColor: '#ff0044', knockback: 15, explosive: true, explosionRadius: 90,
-                    description: '폭발 범위 공격' },
-                { id: 5, name: '화염방사기', icon: '🔥', damage: 3, fireRate: 30, bulletSpeed: 6, bullets: 1, spread: 0.4,
-                    color: '#ff6600', trailColor: '#ff3300', knockback: 0.5, flame: true, flameDuration: 40,
-                    description: '지속 화염 데미지' },
-                { id: 6, name: '검', icon: '⚔️', damage: 35, fireRate: 500, bulletSpeed: 0, bullets: 1, spread: 0,
-                    color: '#ffffff', trailColor: '#cccccc', knockback: 10, melee: true, meleeRange: 70,
-                    description: '근접 베기' },
-                { id: 7, name: '수리검', icon: '🪃', damage: 14, fireRate: 250, bulletSpeed: 16, bullets: 1, spread: 0.08,
-                    color: '#88ccff', trailColor: '#4488ff', knockback: 1.5, description: '빠른 투척' },
-                { id: 8, name: '얼음총', icon: '❄️', damage: 12, fireRate: 350, bulletSpeed: 10, bullets: 1, spread: 0.04,
-                    color: '#aaddff', trailColor: '#88bbff', knockback: 3, slow: true, slowAmount: 0.5, slowDuration: 60,
-                    description: '적 둔화 효과' },
-                { id: 9, name: '번개지팡이', icon: '⚡', damage: 22, fireRate: 600, bulletSpeed: 18, bullets: 1, spread: 0.02,
-                    color: '#ffff44', trailColor: '#ffdd00', knockback: 4, chain: true, chainRange: 100,
-                    description: '체인 라이트닝' },
-            ];
-
-            // ==================== 게임 상태 ====================
-            let gameState = 'menu'; // menu | waiting | weapon_select | playing | round_end | game_over
-            let isHost = false;
-            let roomCode = '';
-            let peer = null;
-            let conn = null;
-            let peerConnected = false;
-
-            // 플레이어
-            let player1 = null;
-            let player2 = null;
-            let projectiles = [];
-            let particles = [];
-            let effects = [];
-
-            // 라운드
-            let roundNumber = 0;
-            let p1Wins = 0;
-            let p2Wins = 0;
-            let weaponSelectTimer = 0;
-            let selectedWeaponP1 = 0;
-            let selectedWeaponP2 = 0;
-            let weaponSelectActive = false;
-            let roundActive = false;
-            let roundEndDelay = 0;
-
-            // 어드민
-            let adminClickCount = 0;
-            let adminClickTimer = 0;
-            let adminGodModeEnabled = false;
-            let adminOneShotEnabled = false;
-            let adminNoCooldownEnabled = false;
-            let adminShowHitboxesEnabled = false;
-
-            // 입력 상태
-            const keys = {};
-            let mouseX = 0;
-            let mouseY = 0;
-            let mouseDown = false;
-
-            // 로컬 플레이어 식별 (호스트=P1, 게스트=P2)
-            let myPlayerId = 0; // 1 or 2
-
-            // 마지막 발사 시간
-            let lastFireTimeP1 = 0;
-            let lastFireTimeP2 = 0;
-            let fireCooldownP1 = 0;
-            let fireCooldownP2 = 0;
-
-            // ==================== 클래스 ====================
-            class Player {
-                constructor(x, y, id, name, color) {
-                    this.id = id;
-                    this.name = name;
-                    this.x = x;
-                    this.y = y;
-                    this.vx = 0;
-                    this.vy = 0;
-                    this.width = 36;
-                    this.height = 48;
-                    this.color = color;
-                    this.health = MAX_HEALTH;
-                    this.maxHealth = MAX_HEALTH;
-                    this.onGround = false;
-                    this.facingRight = id === 1;
-                    this.currentWeapon = 0;
-                    this.alive = true;
-                    this.slowTimer = 0;
-                    this.slowFactor = 1;
-                    this.flashTimer = 0;
-                    this.animTimer = 0;
-                    this.shootRecoil = 0;
-                    this.meleeActive = false;
-                    this.meleeTimer = 0;
-                    this.meleeAngle = 0;
-                }
-
-                reset(x) {
-                    this.x = x;
-                    this.y = GROUND_Y - this.height;
-                    this.vx = 0;
-                    this.vy = 0;
-                    this.health = this.maxHealth;
-                    this.alive = true;
-                    this.onGround = false;
-                    this.slowTimer = 0;
-                    this.slowFactor = 1;
-                    this.flashTimer = 0;
-                    this.shootRecoil = 0;
-                    this.meleeActive = false;
-                    this.meleeTimer = 0;
-                    this.facingRight = this.id === 1;
-                }
-
-                update() {
-                    if (!this.alive) return;
-                    // 둔화
-                    if (this.slowTimer > 0) {
-                        this.slowTimer--;
-                        this.slowFactor = 0.5;
-                    } else {
-                        this.slowFactor = 1;
-                    }
-                    // 중력
-                    this.vy += GRAVITY;
-                    this.y += this.vy;
-                    // 지면 충돌
-                    if (this.y + this.height >= GROUND_Y) {
-                        this.y = GROUND_Y - this.height;
-                        this.vy = 0;
-                        this.onGround = true;
-                    } else {
-                        this.onGround = false;
-                    }
-                    // 수평 이동
-                    this.x += this.vx * this.slowFactor;
-                    // 경계
-                    this.x = Math.max(10, Math.min(CANVAS_W - this.width - 10, this.x));
-                    // 마찰
-                    this.vx *= 0.85;
-                    // 반동
-                    if (this.shootRecoil > 0) this.shootRecoil *= 0.8;
-                    // 근접 타이머
-                    if (this.meleeTimer > 0) {
-                        this.meleeTimer--;
-                        if (this.meleeTimer <= 0) this.meleeActive = false;
-                    }
-                    // 플래시
-                    if (this.flashTimer > 0) this.flashTimer--;
-                    // 애니메이션
-                    this.animTimer++;
-                }
-
-                takeDamage(amount, knockbackX, knockbackY) {
-                    if (!this.alive) return;
-                    if (this.id === 1 && adminGodModeEnabled && myPlayerId === 1) return;
-                    if (this.id === 2 && adminGodModeEnabled && myPlayerId === 2) return;
-                    if (adminOneShotEnabled) amount = this.maxHealth;
-                    this.health -= amount;
-                    this.flashTimer = 8;
-                    this.vx += knockbackX;
-                    this.vy += knockbackY;
-                    if (this.health <= 0) {
-                        this.health = 0;
-                        this.alive = false;
-                        this.onDeath();
-                    }
-                    // 파티클
-                    spawnHitParticles(this.x + this.width / 2, this.y + this.height / 2, amount);
-                }
-
-                onDeath() {
-                    spawnDeathParticles(this.x + this.width / 2, this.y + this.height / 2);
-                }
-            }
-
-            class Projectile {
-                constructor(x, y, vx, vy, damage, color, trailColor, ownerId, weaponData) {
-                    this.x = x;
-                    this.y = y;
-                    this.vx = vx;
-                    this.vy = vy;
-                    this.damage = damage;
-                    this.color = color;
-                    this.trailColor = trailColor;
-                    this.ownerId = ownerId;
-                    this.radius = 4;
-                    this.life = 300;
-                    this.alive = true;
-                    this.trail = [];
-                    this.explosive = weaponData.explosive || false;
-                    this.explosionRadius = weaponData.explosionRadius || 0;
-                    this.flame = weaponData.flame || false;
-                    this.flameDuration = weaponData.flameDuration || 0;
-                    this.slow = weaponData.slow || false;
-                    this.slowAmount = weaponData.slowAmount || 0;
-                    this.slowDuration = weaponData.slowDuration || 0;
-                    this.chain = weaponData.chain || false;
-                    this.chainRange = weaponData.chainRange || 0;
-                    this.knockback = weaponData.knockback || 0;
-                    this.hasChained = false;
-                }
-
-                update() {
-                    this.x += this.vx;
-                    this.y += this.vy;
-                    this.vy += 0.15;
-                    this.life--;
-                    if (this.life <= 0 || this.x < -50 || this.x > CANVAS_W + 50 || this.y > CANVAS_H + 50 || this.y < -
-                        100) {
-                        this.alive = false;
-                    }
-                    this.trail.push({ x: this.x, y: this.y, life: 8 });
-                    if (this.trail.length > 12) this.trail.shift();
-                    for (let t of this.trail) t.life--;
-                }
-            }
-
-            class Particle {
-                constructor(x, y, vx, vy, color, life, size) {
-                    this.x = x;
-                    this.y = y;
-                    this.vx = vx;
-                    this.vy = vy;
-                    this.color = color;
-                    this.life = life;
-                    this.maxLife = life;
-                    this.size = size || 3;
-                    this.alive = true;
-                }
-                update() {
-                    this.x += this.vx;
-                    this.y += this.vy;
-                    this.vy += 0.2;
-                    this.life--;
-                    if (this.life <= 0) this.alive = false;
-                }
-            }
-
-            // ==================== 함수 ====================
-            function spawnHitParticles(x, y, damage) {
-                const count = Math.floor(damage / 3) + 3;
-                for (let i = 0; i < count; i++) {
-                    const angle = Math.random() * Math.PI * 2;
-                    const speed = 2 + Math.random() * 6;
-                    particles.push(new Particle(x, y, Math.cos(angle) * speed, Math.sin(angle) * speed - 2,
-                        Math.random() < 0.5 ? '#ff4444' : '#ffaa00', 15 + Math.random() * 20, 2 + Math.random() * 4));
-                }
-            }
-
-            function spawnDeathParticles(x, y) {
-                for (let i = 0; i < 40; i++) {
-                    const angle = Math.random() * Math.PI * 2;
-                    const speed = 3 + Math.random() * 10;
-                    particles.push(new Particle(x, y, Math.cos(angle) * speed, Math.sin(angle) * speed - 4,
-                        ['#ff4444', '#ff8800', '#ffff00', '#ffffff'][Math.floor(Math.random() * 4)], 25 + Math.random() *
-                        35, 2 + Math.random() * 6));
-                }
-            }
-
-            function spawnExplosion(x, y, radius, color) {
-                for (let i = 0; i < 50; i++) {
-                    const angle = Math.random() * Math.PI * 2;
-                    const dist = Math.random() * radius;
-                    const speed = (radius - dist) * 0.25;
-                    particles.push(new Particle(x + Math.cos(angle) * dist * 0.5, y + Math.sin(angle) * dist * 0.5,
-                        Math.cos(angle) * speed, Math.sin(angle) * speed - 2,
-                        color, 18 + Math.random() * 25, 3 + Math.random() * 8));
-                }
-                effects.push({ x, y, radius, life: 15, maxLife: 15, type: 'explosion', color });
-            }
-
-            function fireWeapon(player, weaponData) {
-                const now = performance.now();
-                const cooldown = adminNoCooldownEnabled ? 50 : weaponData.fireRate;
-                if (player.id === 1) {
-                    if (now - lastFireTimeP1 < cooldown) return;
-                    lastFireTimeP1 = now;
-                } else {
-                    if (now - lastFireTimeP2 < cooldown) return;
-                    lastFireTimeP2 = now;
-                }
-
-                const dir = player.facingRight ? 1 : -1;
-                const muzzleX = player.x + player.width / 2 + dir * (player.width / 2 + 8);
-                const muzzleY = player.y + player.height / 2 - 5;
-
-                if (weaponData.melee) {
-                    // 근접 공격
-                    player.meleeActive = true;
-                    player.meleeTimer = 15;
-                    player.meleeAngle = dir;
-                    player.shootRecoil = dir * 4;
-                    // 히트 체크
-                    const target = player.id === 1 ? player2 : player1;
-                    if (target && target.alive) {
-                        const dx = target.x + target.width / 2 - muzzleX;
-                        const dy = target.y + target.height / 2 - muzzleY;
-                        const dist = Math.sqrt(dx * dx + dy * dy);
-                        if (dist < weaponData.meleeRange && Math.abs(dy) < 60) {
-                            const dmg = adminOneShotEnabled ? target.maxHealth : weaponData.damage;
-                            target.takeDamage(dmg, dir * weaponData.knockback * 2, -6);
-                        }
-                    }
-                    return;
-                }
-
-                for (let i = 0; i < weaponData.bullets; i++) {
-                    const spread = (Math.random() - 0.5) * weaponData.spread * 2;
-                    const vx = dir * weaponData.bulletSpeed + spread * 6;
-                    const vy = (Math.random() - 0.5) * weaponData.spread * 4 - 2;
-                    const proj = new Projectile(muzzleX, muzzleY, vx, vy, weaponData.damage, weaponData.color,
-                        weaponData.trailColor, player.id, weaponData);
-                    projectiles.push(proj);
-                }
-                player.shootRecoil = -dir * 3;
-                // 총구 파티클
-                for (let i = 0; i < 5; i++) {
-                    particles.push(new Particle(muzzleX, muzzleY, dir * (3 + Math.random() * 8), (Math.random() - 0.5) * 4,
-                        '#ffffff', 6 + Math.random() * 8, 1 + Math.random() * 2));
-                }
-            }
-
-            function checkProjectileHits() {
-                const targets = [player1, player2];
-                for (let proj of projectiles) {
-                    if (!proj.alive) continue;
-                    const target = proj.ownerId === 1 ? player2 : player1;
-                    if (!target || !target.alive) continue;
-                    const dx = target.x + target.width / 2 - proj.x;
-                    const dy = target.y + target.height / 2 - proj.y;
-                    const dist = Math.sqrt(dx * dx + dy * dy);
-                    const hitRadius = proj.explosive ? proj.explosionRadius * 0.6 : proj.radius + 22;
-                    if (dist < hitRadius) {
-                        // 히트!
-                        const dmg = adminOneShotEnabled ? target.maxHealth : proj.damage;
-                        target.takeDamage(dmg, (proj.vx > 0 ? 1 : -1) * proj.knockback, -4);
-                        if (proj.slow && target.alive) {
-                            target.slowTimer = proj.slowDuration;
-                        }
-                        if (proj.explosive) {
-                            spawnExplosion(proj.x, proj.y, proj.explosionRadius, '#ff4444');
-                            // 폭발 범위 내 추가 데미지
-                            const otherTarget = proj.ownerId === 1 ? player2 : player1;
-                            if (otherTarget && otherTarget.alive) {
-                                const ddx = otherTarget.x + otherTarget.width / 2 - proj.x;
-                                const ddy = otherTarget.y + otherTarget.height / 2 - proj.y;
-                                const ddist = Math.sqrt(ddx * ddx + ddy * ddy);
-                                if (ddist < proj.explosionRadius) {
-                                    const falloffDmg = Math.floor(proj.damage * 0.6 * (1 - ddist / proj.explosionRadius));
-                                    otherTarget.takeDamage(falloffDmg, (ddx > 0 ? 1 : -1) * proj.knockback * 0.7, -3);
-                                }
-                            }
-                        }
-                        if (proj.chain && !proj.hasChained) {
-                            proj.hasChained = true;
-                            const otherTarget = proj.ownerId === 1 ? player2 : player1;
-                            if (otherTarget && otherTarget.alive && otherTarget !== target) {
-                                const cdx = otherTarget.x + otherTarget.width / 2 - target.x - target.width / 2;
-                                const cdy = otherTarget.y + otherTarget.height / 2 - target.y - target.height / 2;
-                                const cdist = Math.sqrt(cdx * cdx + cdy * cdy);
-                                if (cdist < proj.chainRange) {
-                                    otherTarget.takeDamage(Math.floor(proj.damage * 0.5), (cdx > 0 ? 1 : -1) * proj
-                                        .knockback * 0.5, -2);
-                                    // 체인 이펙트
-                                    effects.push({
-                                        x1: target.x + target.width / 2,
-                                        y1: target.y + target.height / 2,
-                                        x2: otherTarget.x + otherTarget.width / 2,
-                                        y2: otherTarget.y + otherTarget.height / 2,
-                                        life: 10,
-                                        maxLife: 10,
-                                        type: 'lightning'
-                                    });
-                                }
-                            }
-                        }
-                        if (proj.flame) {
-                            effects.push({
-                                x: target.x + target.width / 2,
-                                y: target.y,
-                                life: proj.flameDuration,
-                                maxLife: proj.flameDuration,
-                                type: 'flame',
-                                target: target,
-                                damage: proj.damage,
-                                ownerId: proj.ownerId
-                            });
-                        }
-                        if (!proj.explosive && !proj.chain) {
-                            proj.alive = false;
-                        }
-                        if (proj.explosive) proj.alive = false;
-                    }
-                }
-                // 지속 효과 처리
-                for (let eff of effects) {
-                    if (eff.type === 'flame' && eff.target && eff.target.alive && eff.life > 0) {
-                        if (eff.life % 8 === 0) {
-                            eff.target.takeDamage(eff.damage * 0.4, 0, -1);
-                        }
-                    }
-                }
-            }
-
-            function resetRound() {
-                projectiles = [];
-                particles = [];
-                effects = [];
-                roundActive = true;
-                roundEndDelay = 0;
-                weaponSelectActive = false;
-                weaponSelect.style.display = 'none';
-                weaponSelect.classList.remove('visible');
-                if (player1) player1.reset(180);
-                if (player2) player2.reset(CANVAS_W - 180 - 36);
-                lastFireTimeP1 = 0;
-                lastFireTimeP2 = 0;
-                updateHUD();
-            }
-
-            function startWeaponSelect() {
-                weaponSelectActive = true;
-                weaponSelectTimer = WEAPON_SELECT_TIME * 60;
-                weaponSelect.style.display = 'flex';
-                weaponSelect.classList.add('visible');
-                roundActive = false;
-                buildWeaponCards();
-                updateWeaponTimerUI();
-            }
-
-            function buildWeaponCards() {
-                weaponCardsContainer.innerHTML = '';
-                WEAPONS.forEach((w, idx) => {
-                    const card = document.createElement('div');
-                    card.className = 'weapon-card';
-                    if (idx === selectedWeaponP1 && myPlayerId === 1) card.classList.add('selected');
-                    if (idx === selectedWeaponP2 && myPlayerId === 2) card.classList.add('selected');
-                    card.innerHTML = `<span class="weapon-icon">${w.icon}</span><span>${w.name}</span>`;
-                    card.addEventListener('click', () => {
-                        if (myPlayerId === 1) selectedWeaponP1 = idx;
-                        else selectedWeaponP2 = idx;
-                        buildWeaponCards();
-                        // 상대에게 전송
-                        sendWeaponSelect();
-                    });
-                    weaponCardsContainer.appendChild(card);
+        const UI = {
+            lobbyWrapper: document.getElementById('lobby-container'),
+            lobbyMain: document.getElementById('lobby-main'),
+            waitingRoom: document.getElementById('waiting-room'),
+            lobbyStatus: document.getElementById('lobby-status'),
+            displayRoomCode: document.getElementById('display-room-code'),
+            playerList: document.getElementById('ui-player-list'),
+            hostControls: document.getElementById('host-controls'),
+            clientControls: document.getElementById('client-controls'),
+            nicknameInput: document.getElementById('nickname-input'),
+            roomCodeInput: document.getElementById('room-code-input'),
+            gameContainer: document.getElementById('game-container'),
+            resultScreen: document.getElementById('result-screen'),
+            notifier: document.getElementById('game-notifier'),
+            weaponPanel: document.getElementById('hud-weapon-panel'),
+            weaponText: document.getElementById('hud-weapon'),
+            
+            showStatus(msg, isError = false) {
+                this.lobbyStatus.style.display = 'block';
+                this.lobbyStatus.style.color = isError ? 'var(--danger-color)' : 'var(--accent-color)';
+                this.lobbyStatus.innerText = msg;
+            },
+            triggerNotification(msg) {
+                this.notifier.innerText = msg;
+                this.notifier.classList.add('active');
+                setTimeout(() => this.notifier.classList.remove('active'), 3500);
+            },
+            updatePlayerListUI() {
+                this.playerList.innerHTML = '';
+                Object.keys(G.players).forEach(id => {
+                    const p = G.players[id];
+                    const div = document.createElement('div');
+                    div.className = 'player-item';
+                    div.innerHTML = `
+                        <span>${p.name} ${p.isHost ? '<span style="color:var(--accent-color)">[방장]</span>':''} ${id===G.localId?'(나)':''}</span>
+                        <span class="player-status status-ready">준비완료</span>
+                    `;
+                    this.playerList.appendChild(div);
                 });
             }
+        };
 
-            function updateWeaponTimerUI() {
-                if (!weaponSelectActive) return;
-                const pct = (weaponSelectTimer / (WEAPON_SELECT_TIME * 60)) * 100;
-                weaponTimerFill.style.width = pct + '%';
-                if (pct < 25) weaponTimerFill.style.background = '#ff4444';
-                else if (pct < 50) weaponTimerFill.style.background = '#ff8800';
-                else weaponTimerFill.style.background = '#e94560';
-            }
+        function generateRoomCode() {
+            const chars = 'ABCDEFGHJKLMNPQRSTUVWXYZ23456789'; 
+            let code = '';
+            for (let i = 0; i < 4; i++) code += chars.charAt(Math.floor(Math.random() * chars.length));
+            return code;
+        }
 
-            function sendWeaponSelect() {
-                if (conn && conn.open) {
-                    conn.send({
-                        type: 'weapon_select',
-                        weaponId: myPlayerId === 1 ? selectedWeaponP1 : selectedWeaponP2,
-                        playerId: myPlayerId
-                    });
-                }
-            }
+        // [요청 반영] 초기 스케일 자체를 초거대화(61)하여 고밀도 가변 가속
+        function calculateGridSize(level) {
+            return 61 + (level - 1) * 6; 
+        }
 
-            function endRound(winnerId) {
-                if (!roundActive) return;
-                roundActive = false;
-                roundEndDelay = 90;
-                if (winnerId === 1) p1Wins++;
-                else p2Wins++;
-                updateRoundDots();
-                // 무기 업데이트
-                if (player1) player1.currentWeapon = selectedWeaponP1;
-                if (player2) player2.currentWeapon = selectedWeaponP2;
-                // 승리 체크
-                if (p1Wins >= ROUNDS_TO_WIN || p2Wins >= ROUNDS_TO_WIN) {
-                    gameOver(winnerId === 1 ? 1 : 2);
-                    return;
-                }
-                roundNumber++;
-                // 잠시 후 무기 선택
-                setTimeout(() => {
-                    if (gameState === 'playing') startWeaponSelect();
-                }, 1500);
-            }
+        // --- P2P 네트워크 트래픽 엔진 모듈 ---
+        function initNetwork(asHost, roomCode) {
+            G.isHost = asHost;
+            G.roomCode = roomCode.toUpperCase();
+            G.nickname = UI.nicknameInput.value.trim() || '무명전사';
+            G.localId = asHost ? PEER_PREFIX + G.roomCode + "-HOST" : PEER_PREFIX + G.roomCode + "-CLIENT-" + Math.floor(Math.random()*1000);
 
-            function gameOver(winnerId) {
-                gameState = 'game_over';
-                roundActive = false;
-                weaponSelectActive = false;
-                weaponSelect.classList.remove('visible');
-                weaponSelect.style.display = 'none';
-                resultScreen.classList.add('visible');
-                resultScreen.style.display = 'flex';
-                if (winnerId === 1) {
-                    resultText.textContent = '🏆 PLAYER 1 승리!';
-                    resultDetail.textContent = `${p1Wins} : ${p2Wins} 로 승리했습니다!`;
-                } else {
-                    resultText.textContent = '🏆 PLAYER 2 승리!';
-                    resultDetail.textContent = `${p2Wins} : ${p1Wins} 로 승리했습니다!`;
-                }
-                hud.classList.remove('visible');
-                hud.style.display = 'none';
-            }
+            UI.showStatus("P2P 중계 플랫폼 동기화 세션 진입 중...");
 
-            function updateHUD() {
-                if (player1) {
-                    const pct1 = Math.max(0, (player1.health / player1.maxHealth) * 100);
-                    hpBarP1.style.width = pct1 + '%';
-                    weaponNameP1.textContent = WEAPONS[player1.currentWeapon]?.name || '권총';
-                }
-                if (player2) {
-                    const pct2 = Math.max(0, (player2.health / player2.maxHealth) * 100);
-                    hpBarP2.style.width = pct2 + '%';
-                    weaponNameP2.textContent = WEAPONS[player2.currentWeapon]?.name || '권총';
-                }
-            }
+            G.peer = new Peer(G.localId, { debug: 1 });
 
-            function updateRoundDots() {
-                roundDotsContainer.innerHTML = '';
-                for (let i = 0; i < TOTAL_ROUNDS; i++) {
-                    const dot = document.createElement('div');
-                    dot.className = 'round-dot';
-                    if (i < p1Wins) dot.classList.add('won-p1');
-                    if (i < p2Wins) dot.classList.add('won-p2');
-                    if (i === roundNumber && roundActive) dot.classList.add('current');
-                    roundDotsContainer.appendChild(dot);
-                }
-            }
+            G.peer.on('open', (id) => {
+                UI.lobbyMain.style.display = 'none';
+                UI.waitingRoom.style.display = 'block';
+                UI.displayRoomCode.innerText = G.roomCode;
 
-            function sendGameState() {
-                if (!conn || !conn.open || !peerConnected) return;
-                if (!player1 || !player2) return;
-                const data = {
-                    type: 'game_state',
-                    p1: {
-                        x: player1.x,
-                        y: player1.y,
-                        vx: player1.vx,
-                        vy: player1.vy,
-                        health: player1.health,
-                        alive: player1.alive,
-                        facingRight: player1.facingRight,
-                        currentWeapon: player1.currentWeapon,
-                        meleeActive: player1.meleeActive,
-                        meleeTimer: player1.meleeTimer,
-                        meleeAngle: player1.meleeAngle,
-                        shootRecoil: player1.shootRecoil,
-                    },
-                    p2: {
-                        x: player2.x,
-                        y: player2.y,
-                        vx: player2.vx,
-                        vy: player2.vy,
-                        health: player2.health,
-                        alive: player2.alive,
-                        facingRight: player2.facingRight,
-                        currentWeapon: player2.currentWeapon,
-                        meleeActive: player2.meleeActive,
-                        meleeTimer: player2.meleeTimer,
-                        meleeAngle: player2.meleeAngle,
-                        shootRecoil: player2.shootRecoil,
-                    },
-                    projectiles: projectiles.filter(p => p.alive).map(p => ({
-                        x: p.x,
-                        y: p.y,
-                        vx: p.vx,
-                        vy: p.vy,
-                        color: p.color,
-                        trailColor: p.trailColor,
-                        ownerId: p.ownerId,
-                        radius: p.radius,
-                        explosive: p.explosive,
-                        explosionRadius: p.explosionRadius,
-                        flame: p.flame,
-                        flameDuration: p.flameDuration,
-                        slow: p.slow,
-                        slowAmount: p.slowAmount,
-                        slowDuration: p.slowDuration,
-                        chain: p.chain,
-                        chainRange: p.chainRange,
-                        knockback: p.knockback,
-                    })),
-                    roundNumber: roundNumber,
-                    p1Wins: p1Wins,
-                    p2Wins: p2Wins,
-                    roundActive: roundActive,
+                G.players[G.localId] = {
+                    x: CELL_SIZE * 1.5, y: CELL_SIZE * 1.5,
+                    vx: 0, vy: 0, angle: 0,
+                    name: G.nickname, hasRPG: false, hasNuke: false, isHost: asHost
                 };
-                try { conn.send(data); } catch (e) {}
-            }
 
-            function sendInput() {
-                if (!conn || !conn.open || !peerConnected) return;
-                const data = {
-                    type: 'input',
-                    keys: { ...keys },
-                    mouseX,
-                    mouseY,
-                    mouseDown,
-                    playerId: myPlayerId,
-                };
-                try { conn.send(data); } catch (e) {}
-            }
-
-            function sendFire(weaponId) {
-                if (!conn || !conn.open || !peerConnected) return;
-                conn.send({
-                    type: 'fire',
-                    weaponId,
-                    playerId: myPlayerId,
-                    timestamp: performance.now(),
-                });
-            }
-
-            // ==================== PeerJS ====================
-            function generateRoomCode() {
-                return String(Math.floor(1000 + Math.random() * 9000));
-            }
-
-            function hostGame() {
-                roomCode = generateRoomCode();
-                isHost = true;
-                myPlayerId = 1;
-                roomCodeShow.textContent = roomCode;
-                mainMenu.classList.add('hidden');
-                waitingRoom.classList.add('visible');
-                waitingRoom.style.display = 'flex';
-                waitingMsg.textContent = '상대방을 기다리는 중...';
-                opponentDot.className = 'player-dot dot-waiting';
-                btnStartGame.classList.remove('visible');
-                btnStartGame.style.display = 'none';
-
-                // Peer 생성
-                try {
-                    peer = new Peer(roomCode, {
-                        debug: 0
-                    });
-                } catch (e) {
-                    peer = new Peer(roomCode);
-                }
-
-                peer.on('open', (id) => {
-                    console.log('Host peer opened with ID:', id);
-                    roomCodeShow.textContent = id;
-                    roomCode = id;
-                });
-
-                peer.on('connection', (incomingConn) => {
-                    conn = incomingConn;
-                    setupConnection();
-                    peerConnected = true;
-                    waitingMsg.textContent = '✅ 상대방 연결됨!';
-                    opponentDot.className = 'player-dot dot-connected';
-                    btnStartGame.classList.add('visible');
-                    btnStartGame.style.display = 'inline-block';
-                });
-
-                peer.on('error', (err) => {
-                    console.error('Peer error:', err);
-                    if (err.type === 'unavailable-id') {
-                        // ID 충돌 시 재시도
-                        roomCode = generateRoomCode();
-                        peer.destroy();
-                        setTimeout(() => hostGame(), 500);
-                        return;
-                    }
-                    waitingMsg.textContent = '⚠️ 연결 오류. 다시 시도해주세요.';
-                });
-            }
-
-            function joinGame(code) {
-                if (!code || code.length < 4) {
-                    alert('4자리 방 코드를 입력해주세요.');
-                    return;
-                }
-                roomCode = code;
-                isHost = false;
-                myPlayerId = 2;
-                roomCodeShow.textContent = roomCode;
-                mainMenu.classList.add('hidden');
-                waitingRoom.classList.add('visible');
-                waitingRoom.style.display = 'flex';
-                waitingMsg.textContent = '호스트에 연결 중...';
-                opponentDot.className = 'player-dot dot-waiting';
-                btnStartGame.classList.remove('visible');
-                btnStartGame.style.display = 'none';
-
-                try {
-                    peer = new Peer();
-                } catch (e) {
-                    peer = new Peer();
-                }
-
-                peer.on('open', (id) => {
-                    console.log('Guest peer opened with ID:', id);
-                    conn = peer.connect(roomCode, {
-                        reliable: true
-                    });
-                    setupConnection();
-                });
-
-                peer.on('error', (err) => {
-                    console.error('Peer error:', err);
-                    waitingMsg.textContent = '⚠️ 방을 찾을 수 없습니다. 코드를 확인하세요.';
-                });
-            }
-
-            function setupConnection() {
-                conn.on('open', () => {
-                    peerConnected = true;
-                    waitingMsg.textContent = '✅ 연결됨!';
-                    opponentDot.className = 'player-dot dot-connected';
-                    if (isHost) {
-                        btnStartGame.classList.add('visible');
-                        btnStartGame.style.display = 'inline-block';
-                    }
-                    // 게스트는 호스트에게 자신이 연결되었음을 알림
-                    if (!isHost) {
-                        conn.send({ type: 'guest_connected' });
-                    }
-                });
-
-                conn.on('data', (data) => {
-                    handlePeerData(data);
-                });
-
-                conn.on('close', () => {
-                    peerConnected = false;
-                    waitingMsg.textContent = '⚠️ 연결이 끊어졌습니다.';
-                    opponentDot.className = 'player-dot dot-waiting';
-                });
-
-                conn.on('error', (err) => {
-                    console.error('Connection error:', err);
-                });
-            }
-
-            function handlePeerData(data) {
-                if (!data || !data.type) return;
-
-                switch (data.type) {
-                    case 'guest_connected':
-                        if (isHost) {
-                            waitingMsg.textContent = '✅ 상대방 연결됨!';
-                            opponentDot.className = 'player-dot dot-connected';
-                            btnStartGame.classList.add('visible');
-                            btnStartGame.style.display = 'inline-block';
-                        }
-                        break;
-
-                    case 'start_game':
-                        startMatch();
-                        break;
-
-                    case 'game_state':
-                        if (!isHost && player1 && player2 && data.p1 && data.p2) {
-                            // 게스트가 호스트로부터 받은 상태 업데이트
-                            player1.x = data.p1.x;
-                            player1.y = data.p1.y;
-                            player1.vx = data.p1.vx;
-                            player1.vy = data.p1.vy;
-                            player1.health = data.p1.health;
-                            player1.alive = data.p1.alive;
-                            player1.facingRight = data.p1.facingRight;
-                            player1.currentWeapon = data.p1.currentWeapon;
-                            player1.meleeActive = data.p1.meleeActive;
-                            player1.meleeTimer = data.p1.meleeTimer;
-                            player1.meleeAngle = data.p1.meleeAngle;
-                            player1.shootRecoil = data.p1.shootRecoil;
-
-                            player2.x = data.p2.x;
-                            player2.y = data.p2.y;
-                            player2.vx = data.p2.vx;
-                            player2.vy = data.p2.vy;
-                            player2.health = data.p2.health;
-                            player2.alive = data.p2.alive;
-                            player2.facingRight = data.p2.facingRight;
-                            player2.currentWeapon = data.p2.currentWeapon;
-                            player2.meleeActive = data.p2.meleeActive;
-                            player2.meleeTimer = data.p2.meleeTimer;
-                            player2.meleeAngle = data.p2.meleeAngle;
-                            player2.shootRecoil = data.p2.shootRecoil;
-
-                            // 발사체 동기화
-                            if (data.projectiles) {
-                                projectiles = data.projectiles.map(p => {
-                                    const proj = new Projectile(p.x, p.y, p.vx, p.vy, 1, p.color, p
-                                        .trailColor, p.ownerId, {
-                                            explosive: p.explosive,
-                                            explosionRadius: p.explosionRadius,
-                                            flame: p.flame,
-                                            flameDuration: p.flameDuration,
-                                            slow: p.slow,
-                                            slowAmount: p.slowAmount,
-                                            slowDuration: p.slowDuration,
-                                            chain: p.chain,
-                                            chainRange: p.chainRange,
-                                            knockback: p.knockback,
-                                        });
-                                    proj.radius = p.radius;
-                                    proj.damage = 1;
-                                    return proj;
-                                });
-                            }
-                            roundNumber = data.roundNumber;
-                            p1Wins = data.p1Wins;
-                            p2Wins = data.p2Wins;
-                            roundActive = data.roundActive;
-                            updateHUD();
-                            updateRoundDots();
-                        }
-                        break;
-
-                    case 'input':
-                        if (isHost && data.playerId === 2) {
-                            // 게스트의 입력을 player2에 적용
-                            applyInputToPlayer(player2, data.keys, data.mouseX, data.mouseY, data.mouseDown);
-                        }
-                        break;
-
-                    case 'fire':
-                        if (isHost) {
-                            const shooter = data.playerId === 1 ? player1 : player2;
-                            if (shooter && shooter.alive && roundActive) {
-                                const wData = WEAPONS[data.weaponId];
-                                if (wData) {
-                                    fireWeapon(shooter, wData);
-                                }
-                            }
-                        }
-                        break;
-
-                    case 'weapon_select':
-                        if (data.playerId === 1) selectedWeaponP1 = data.weaponId;
-                        else selectedWeaponP2 = data.weaponId;
-                        if (weaponSelectActive) buildWeaponCards();
-                        break;
-
-                    case 'round_end':
-                        if (!isHost) {
-                            endRound(data.winnerId);
-                        }
-                        break;
-
-                    case 'game_over':
-                        if (!isHost) {
-                            p1Wins = data.p1Wins;
-                            p2Wins = data.p2Wins;
-                            gameOver(data.winnerId);
-                        }
-                        break;
-                }
-            }
-
-            function applyInputToPlayer(player, inputKeys, mx, my, md) {
-                if (!player || !player.alive) return;
-                player.vx = 0;
-                if (inputKeys['a'] || inputKeys['ArrowLeft']) player.vx = -PLAYER_SPEED;
-                if (inputKeys['d'] || inputKeys['ArrowRight']) player.vx = PLAYER_SPEED;
-                if (inputKeys['a'] && inputKeys['d']) player.vx = 0;
-                if (inputKeys['ArrowLeft'] && inputKeys['ArrowRight']) player.vx = 0;
-
-                if ((inputKeys['w'] || inputKeys['ArrowUp'] || inputKeys[' ']) && player.onGround) {
-                    player.vy = JUMP_FORCE;
-                    player.onGround = false;
-                }
-                // 페이싱
-                if (player.vx < -0.5) player.facingRight = false;
-                if (player.vx > 0.5) player.facingRight = true;
-            }
-
-            function startMatch() {
-                gameState = 'playing';
-                waitingRoom.classList.remove('visible');
-                waitingRoom.style.display = 'none';
-                mainMenu.classList.add('hidden');
-                resultScreen.classList.remove('visible');
-                resultScreen.style.display = 'none';
-                hud.classList.add('visible');
-                hud.style.display = 'flex';
-                roundNumber = 0;
-                p1Wins = 0;
-                p2Wins = 0;
-                selectedWeaponP1 = 0;
-                selectedWeaponP2 = 0;
-                projectiles = [];
-                particles = [];
-                effects = [];
-                player1 = new Player(180, GROUND_Y - 48, 1, 'Player 1', '#4eff4e');
-                player2 = new Player(CANVAS_W - 180 - 36, GROUND_Y - 48, 2, 'Player 2', '#ff4444');
-                player1.currentWeapon = 0;
-                player2.currentWeapon = 0;
-                updateRoundDots();
-                updateHUD();
-                startWeaponSelect();
-            }
-
-            // ==================== 게임 루프 ====================
-            function update() {
-                // 어드민 클릭 타이머
-                if (adminClickTimer > 0) {
-                    adminClickTimer--;
-                    if (adminClickTimer <= 0) adminClickCount = 0;
-                }
-
-                // 무기 선택 타이머
-                if (weaponSelectActive) {
-                    weaponSelectTimer--;
-                    updateWeaponTimerUI();
-                    if (weaponSelectTimer <= 0) {
-                        // 시간 초과 - 현재 선택 확정
-                        weaponSelectActive = false;
-                        weaponSelect.classList.remove('visible');
-                        weaponSelect.style.display = 'none';
-                        if (player1) player1.currentWeapon = selectedWeaponP1;
-                        if (player2) player2.currentWeapon = selectedWeaponP2;
-                        if (isHost) {
-                            resetRound();
-                            if (conn && conn.open) {
-                                conn.send({ type: 'round_start', p1Weapon: selectedWeaponP1, p2Weapon: selectedWeaponP2 });
-                            }
-                        }
-                    }
-                }
-
-                // 라운드 종료 딜레이
-                if (roundEndDelay > 0) {
-                    roundEndDelay--;
-                    if (roundEndDelay <= 0 && isHost) {
-                        if (p1Wins < ROUNDS_TO_WIN && p2Wins < ROUNDS_TO_WIN) {
-                            startWeaponSelect();
-                        }
-                    }
-                }
-
-                // 라운드 활성 상태 업데이트
-                if (roundActive && gameState === 'playing') {
-                    if (player1) player1.update();
-                    if (player2) player2.update();
-
-                    // 발사체 업데이트
-                    for (let proj of projectiles) {
-                        if (proj.alive) proj.update();
-                    }
-                    // 파티클 업데이트
-                    for (let p of particles) {
-                        if (p.alive) p.update();
-                    }
-                    // 이펙트 업데이트
-                    for (let eff of effects) {
-                        eff.life--;
-                    }
-
-                    // 충돌 체크 (호스트만)
-                    if (isHost) {
-                        checkProjectileHits();
-                        // 라운드 종료 체크
-                        if (player1 && !player1.alive && roundActive) {
-                            endRound(2);
-                            if (conn && conn.open) conn.send({ type: 'round_end', winnerId: 2 });
-                        }
-                        if (player2 && !player2.alive && roundActive) {
-                            endRound(1);
-                            if (conn && conn.open) conn.send({ type: 'round_end', winnerId: 1 });
-                        }
-                    }
-
-                    // 청소
-                    projectiles = projectiles.filter(p => p.alive);
-                    particles = particles.filter(p => p.alive);
-                    effects = effects.filter(e => e.life > 0);
-
-                    updateHUD();
-                }
-
-                // 호스트는 주기적으로 게임 상태 전송
-                if (isHost && gameState === 'playing' && peerConnected && roundActive) {
-                    if (Math.floor(performance.now() / 50) % 2 === 0) {
-                        sendGameState();
-                    }
-                }
-
-                // 게스트는 주기적으로 입력 전송
-                if (!isHost && peerConnected && roundActive) {
-                    sendInput();
-                }
-
-                // 어드민 체력 슬라이더
-                if (adminPanel.classList.contains('visible')) {
-                    if (player1) player1.health = parseInt(adminHpP1.value);
-                    if (player2) player2.health = parseInt(adminHpP2.value);
-                }
-            }
-
-            function drawBackground() {
-                // 하늘 그라디언트
-                const skyGrad = ctx.createLinearGradient(0, 0, 0, CANVAS_H);
-                skyGrad.addColorStop(0, '#0a0a2e');
-                skyGrad.addColorStop(0.5, '#1a1a40');
-                skyGrad.addColorStop(1, '#2a1a3a');
-                ctx.fillStyle = skyGrad;
-                ctx.fillRect(0, 0, CANVAS_W, CANVAS_H);
-
-                // 별
-                const starSeed = 42;
-                for (let i = 0; i < 80; i++) {
-                    const sx = ((i * 137 + starSeed) % CANVAS_W);
-                    const sy = ((i * 251 + starSeed * 3) % (GROUND_Y - 40));
-                    const brightness = 0.3 + ((i * 73) % 100) / 200;
-                    ctx.fillStyle = `rgba(255,255,255,${brightness})`;
-                    ctx.beginPath();
-                    ctx.arc(sx, sy, 0.8 + ((i * 17) % 3) * 0.4, 0, Math.PI * 2);
-                    ctx.fill();
-                }
-
-                // 지면
-                const groundGrad = ctx.createLinearGradient(0, GROUND_Y, 0, CANVAS_H);
-                groundGrad.addColorStop(0, '#3a3a4a');
-                groundGrad.addColorStop(0.3, '#2a2a35');
-                groundGrad.addColorStop(1, '#1a1a25');
-                ctx.fillStyle = groundGrad;
-                ctx.fillRect(0, GROUND_Y, CANVAS_W, CANVAS_H - GROUND_Y);
-
-                // 지면 라인
-                ctx.strokeStyle = '#555570';
-                ctx.lineWidth = 2;
-                ctx.beginPath();
-                ctx.moveTo(0, GROUND_Y);
-                ctx.lineTo(CANVAS_W, GROUND_Y);
-                ctx.stroke();
-
-                // 지면 텍스처
-                ctx.strokeStyle = '#44445a';
-                ctx.lineWidth = 0.5;
-                for (let i = 0; i < CANVAS_W; i += 30) {
-                    ctx.beginPath();
-                    ctx.moveTo(i, GROUND_Y + 5);
-                    ctx.lineTo(i - 10, GROUND_Y + 20);
-                    ctx.stroke();
-                }
-
-                // 중앙 장식
-                ctx.fillStyle = '#2a2a3a';
-                ctx.fillRect(CANVAS_W / 2 - 3, GROUND_Y - 80, 6, 80);
-                ctx.fillStyle = '#444460';
-                ctx.beginPath();
-                ctx.arc(CANVAS_W / 2, GROUND_Y - 85, 12, 0, Math.PI * 2);
-                ctx.fill();
-                ctx.fillStyle = '#ffdd57';
-                ctx.beginPath();
-                ctx.arc(CANVAS_W / 2, GROUND_Y - 85, 6, 0, Math.PI * 2);
-                ctx.fill();
-            }
-
-            function drawPlayer(p) {
-                if (!p || !p.alive) return;
-                const flash = p.flashTimer > 0 && p.flashTimer % 2 === 0;
-                const bodyX = p.x + p.width / 2;
-                const bodyY = p.y + p.height / 2;
-
-                ctx.save();
-                if (flash) {
-                    ctx.globalAlpha = 0.6;
-                }
-
-                // 그림자
-                ctx.fillStyle = 'rgba(0,0,0,0.4)';
-                ctx.beginPath();
-                ctx.ellipse(bodyX, p.y + p.height - 2, p.width / 2 + 2, 4, 0, 0, Math.PI * 2);
-                ctx.fill();
-
-                // 다리
-                const legWidth = 9;
-                const legHeight = 16;
-                ctx.fillStyle = p.color;
-                ctx.fillRect(bodyX - legWidth - 2, p.y + p.height - legHeight - 2, legWidth, legHeight);
-                ctx.fillRect(bodyX + 2, p.y + p.height - legHeight - 2, legWidth, legHeight);
-
-                // 몸통
-                const bodyWidth = p.width - 4;
-                const bodyHeight = 22;
-                const bodyTop = p.y + 6;
-                const bodyGrad = ctx.createLinearGradient(bodyX - bodyWidth / 2, 0, bodyX + bodyWidth / 2, 0);
-                bodyGrad.addColorStop(0, p.color);
-                bodyGrad.addColorStop(1, p.id === 1 ? '#2ecc40' : '#e94560');
-                ctx.fillStyle = bodyGrad;
-                ctx.beginPath();
-                ctx.roundRect(bodyX - bodyWidth / 2, bodyTop, bodyWidth, bodyHeight, 6);
-                ctx.fill();
-                ctx.strokeStyle = 'rgba(255,255,255,0.2)';
-                ctx.lineWidth = 1.5;
-                ctx.stroke();
-
-                // 머리
-                const headRadius = 10;
-                const headY = p.y + 2;
-                ctx.fillStyle = '#f4d5a8';
-                ctx.beginPath();
-                ctx.arc(bodyX, headY + headRadius, headRadius, 0, Math.PI * 2);
-                ctx.fill();
-                ctx.strokeStyle = 'rgba(0,0,0,0.3)';
-                ctx.lineWidth = 1;
-                ctx.stroke();
-
-                // 눈
-                const eyeDir = p.facingRight ? 1 : -1;
-                ctx.fillStyle = '#000';
-                ctx.beginPath();
-                ctx.arc(bodyX + eyeDir * 4, headY + headRadius - 2, 2.5, 0, Math.PI * 2);
-                ctx.fill();
-                ctx.fillStyle = '#fff';
-                ctx.beginPath();
-                ctx.arc(bodyX + eyeDir * 5, headY + headRadius - 3, 1, 0, Math.PI * 2);
-                ctx.fill();
-
-                // 팔
-                const armX = bodyX + (p.facingRight ? bodyWidth / 2 : -bodyWidth / 2);
-                const armY = bodyTop + 4;
-                ctx.fillStyle = p.color;
-                ctx.fillRect(armX - 3, armY, 6, 14);
-
-                // 무기 표시
-                if (WEAPONS[p.currentWeapon]) {
-                    const wIcon = WEAPONS[p.currentWeapon].icon;
-                    ctx.font = '16px sans-serif';
-                    ctx.fillText(wIcon, armX + (p.facingRight ? 6 : -18), armY + 6);
-                }
-
-                // 근접 이펙트
-                if (p.meleeActive && p.meleeTimer > 0) {
-                    const angle = p.meleeAngle;
-                    const slashX = bodyX + angle * 40;
-                    const slashY = bodyY - 10;
-                    ctx.strokeStyle = 'rgba(255,255,255,0.8)';
-                    ctx.lineWidth = 3;
-                    ctx.beginPath();
-                    ctx.arc(slashX, slashY, 35, -angle * 1.2, -angle * 0.3);
-                    ctx.stroke();
-                    ctx.strokeStyle = 'rgba(255,200,100,0.5)';
-                    ctx.lineWidth = 6;
-                    ctx.beginPath();
-                    ctx.arc(slashX, slashY, 32, -angle * 1.1, -angle * 0.4);
-                    ctx.stroke();
-                }
-
-                // 반동 표시
-                if (Math.abs(p.shootRecoil) > 0.5) {
-                    ctx.fillStyle = 'rgba(255,200,100,0.3)';
-                    ctx.beginPath();
-                    ctx.arc(bodyX + p.shootRecoil * 5, bodyY - 5, 8, 0, Math.PI * 2);
-                    ctx.fill();
-                }
-
-                // 둔화 표시
-                if (p.slowTimer > 0) {
-                    ctx.strokeStyle = 'rgba(150,200,255,0.7)';
-                    ctx.lineWidth = 2;
-                    ctx.beginPath();
-                    ctx.roundRect(p.x - 2, p.y - 2, p.width + 4, p.height + 4, 4);
-                    ctx.stroke();
-                }
-
-                ctx.restore();
-
-                // 어드민 히트박스
-                if (adminShowHitboxesEnabled) {
-                    ctx.strokeStyle = 'rgba(255,255,0,0.6)';
-                    ctx.lineWidth = 1;
-                    ctx.setLineDash([4, 4]);
-                    ctx.beginPath();
-                    ctx.roundRect(p.x, p.y, p.width, p.height, 4);
-                    ctx.stroke();
-                    ctx.setLineDash([]);
-                }
-            }
-
-            function drawProjectiles() {
-                for (let proj of projectiles) {
-                    if (!proj.alive) continue;
-                    // 트레일
-                    for (let i = 0; i < proj.trail.length; i++) {
-                        const t = proj.trail[i];
-                        const alpha = t.life / 8;
-                        const size = proj.radius * (0.5 + alpha * 0.5);
-                        ctx.fillStyle = proj.trailColor.replace(')', `,${alpha})`).replace('rgb',
-                            'rgba');
-                        if (proj.trailColor.startsWith('#')) {
-                            ctx.fillStyle = proj.trailColor + Math.floor(alpha * 255).toString(16).padStart(2,
-                                '0');
-                        }
-                        ctx.beginPath();
-                        ctx.arc(t.x, t.y, size, 0, Math.PI * 2);
-                        ctx.fill();
-                    }
-                    // 발사체 본체
-                    const glowGrad = ctx.createRadialGradient(proj.x, proj.y, 0, proj.x, proj.y, proj.radius * 2.5);
-                    glowGrad.addColorStop(0, '#ffffff');
-                    glowGrad.addColorStop(0.3, proj.color);
-                    glowGrad.addColorStop(1, 'rgba(0,0,0,0)');
-                    ctx.fillStyle = glowGrad;
-                    ctx.beginPath();
-                    ctx.arc(proj.x, proj.y, proj.radius * 2.5, 0, Math.PI * 2);
-                    ctx.fill();
-                    ctx.fillStyle = proj.color;
-                    ctx.beginPath();
-                    ctx.arc(proj.x, proj.y, proj.radius, 0, Math.PI * 2);
-                    ctx.fill();
-                }
-            }
-
-            function drawParticles() {
-                for (let p of particles) {
-                    if (!p.alive) continue;
-                    const alpha = p.life / p.maxLife;
-                    ctx.fillStyle = p.color.replace(')', `,${alpha})`).replace('rgb', 'rgba');
-                    if (p.color.startsWith('#')) {
-                        ctx.fillStyle = p.color;
-                        ctx.globalAlpha = alpha;
-                    }
-                    ctx.beginPath();
-                    ctx.arc(p.x, p.y, p.size * alpha, 0, Math.PI * 2);
-                    ctx.fill();
-                    ctx.globalAlpha = 1;
-                }
-            }
-
-            function drawEffects() {
-                for (let eff of effects) {
-                    const alpha = eff.life / eff.maxLife;
-                    if (eff.type === 'explosion') {
-                        const grad = ctx.createRadialGradient(eff.x, eff.y, 0, eff.x, eff.y, eff.radius * alpha);
-                        grad.addColorStop(0, 'rgba(255,255,200,0.9)');
-                        grad.addColorStop(0.3, 'rgba(255,150,50,0.7)');
-                        grad.addColorStop(0.7, 'rgba(255,50,20,0.3)');
-                        grad.addColorStop(1, 'rgba(0,0,0,0)');
-                        ctx.fillStyle = grad;
-                        ctx.beginPath();
-                        ctx.arc(eff.x, eff.y, eff.radius * alpha, 0, Math.PI * 2);
-                        ctx.fill();
-                    } else if (eff.type === 'lightning') {
-                        ctx.strokeStyle = `rgba(255,255,100,${alpha})`;
-                        ctx.lineWidth = 2 + alpha * 3;
-                        ctx.beginPath();
-                        ctx.moveTo(eff.x1, eff.y1);
-                        const midX = (eff.x1 + eff.x2) / 2 + (Math.random() - 0.5) * 40;
-                        const midY = (eff.y1 + eff.y2) / 2 + (Math.random() - 0.5) * 40;
-                        ctx.quadraticCurveTo(midX, midY, eff.x2, eff.y2);
-                        ctx.stroke();
-                        ctx.strokeStyle = `rgba(255,255,255,${alpha})`;
-                        ctx.lineWidth = 1;
-                        ctx.beginPath();
-                        ctx.moveTo(eff.x1, eff.y1);
-                        ctx.quadraticCurveTo(midX + (Math.random() - 0.5) * 15, midY + (Math.random() - 0.5) * 15, eff.x2,
-                            eff.y2);
-                        ctx.stroke();
-                    } else if (eff.type === 'flame') {
-                        if (eff.target && eff.target.alive) {
-                            const fx = eff.target.x + eff.target.width / 2 + (Math.random() - 0.5) * 20;
-                            const fy = eff.target.y + (Math.random() * eff.target.height);
-                            const fgrad = ctx.createRadialGradient(fx, fy, 0, fx, fy, 16);
-                            fgrad.addColorStop(0, 'rgba(255,200,50,0.8)');
-                            fgrad.addColorStop(0.5, 'rgba(255,100,20,0.5)');
-                            fgrad.addColorStop(1, 'rgba(0,0,0,0)');
-                            ctx.fillStyle = fgrad;
-                            ctx.beginPath();
-                            ctx.arc(fx, fy, 16, 0, Math.PI * 2);
-                            ctx.fill();
-                        }
-                    }
-                }
-            }
-
-            function drawWeaponSelectHighlight() {
-                if (!weaponSelectActive) return;
-                // 선택 UI가 캔버스 위에 표시되므로 캔버스에는 타이머만 추가 표시
-                const timerSec = Math.ceil(weaponSelectTimer / 60);
-                ctx.fillStyle = 'rgba(0,0,0,0.5)';
-                ctx.fillRect(CANVAS_W / 2 - 40, 20, 80, 30);
-                ctx.fillStyle = timerSec <= 5 ? '#ff4444' : '#fff';
-                ctx.font = 'bold 20px "Segoe UI", sans-serif';
-                ctx.textAlign = 'center';
-                ctx.fillText(timerSec + 's', CANVAS_W / 2, 42);
-                ctx.textAlign = 'start';
-            }
-
-            function render() {
-                ctx.clearRect(0, 0, CANVAS_W, CANVAS_H);
-                drawBackground();
-
-                if (gameState === 'playing' || gameState === 'game_over') {
-                    drawEffects();
-                    drawProjectiles();
-                    if (player1 && player1.alive) drawPlayer(player1);
-                    if (player2 && player2.alive) drawPlayer(player2);
-                    drawParticles();
-                    drawWeaponSelectHighlight();
-
-                    // 라운드 종료 메시지
-                    if (roundEndDelay > 0 && !roundActive) {
-                        ctx.fillStyle = 'rgba(0,0,0,0.5)';
-                        ctx.fillRect(0, CANVAS_H / 2 - 40, CANVAS_W, 80);
-                        ctx.fillStyle = '#fff';
-                        ctx.font = 'bold 28px "Segoe UI", sans-serif';
-                        ctx.textAlign = 'center';
-                        const winnerName = (p1Wins > (roundNumber > 0 ? p1Wins - 1 : 0) || (roundNumber === 0 && p1Wins > 0)) ?
-                            'PLAYER 1' : 'PLAYER 2';
-                        ctx.fillText(`${winnerName} 라운드 승!`, CANVAS_W / 2, CANVAS_H / 2 + 8);
-                        ctx.textAlign = 'start';
-                    }
-
-                    // 게임 오버 화면 (캔버스 배경)
-                    if (gameState === 'game_over') {
-                        ctx.fillStyle = 'rgba(0,0,0,0.6)';
-                        ctx.fillRect(0, 0, CANVAS_W, CANVAS_H);
-                        ctx.fillStyle = '#ffdd57';
-                        ctx.font = 'bold 40px "Segoe UI", sans-serif';
-                        ctx.textAlign = 'center';
-                        ctx.fillText('GAME OVER', CANVAS_W / 2, CANVAS_H / 2 - 10);
-                        ctx.textAlign = 'start';
-                    }
-                }
-            }
-
-            function gameLoop() {
-                update();
-                render();
-                requestAnimationFrame(gameLoop);
-            }
-
-            // ==================== 입력 처리 ====================
-            window.addEventListener('keydown', (e) => {
-                keys[e.key] = true;
-                keys[e.key.toLowerCase()] = true;
-                if (e.key === ' ' || e.key === 'ArrowUp' || e.key === 'ArrowDown') {
-                    e.preventDefault();
-                }
-            });
-
-            window.addEventListener('keyup', (e) => {
-                keys[e.key] = false;
-                keys[e.key.toLowerCase()] = false;
-            });
-
-            canvas.addEventListener('mousemove', (e) => {
-                const rect = canvas.getBoundingClientRect();
-                const scaleX = CANVAS_W / rect.width;
-                const scaleY = CANVAS_H / rect.height;
-                mouseX = (e.clientX - rect.left) * scaleX;
-                mouseY = (e.clientY - rect.top) * scaleY;
-            });
-
-            canvas.addEventListener('mousedown', (e) => {
-                if (e.button === 0) {
-                    mouseDown = true;
-                    if (roundActive && gameState === 'playing') {
-                        const myPlayer = myPlayerId === 1 ? player1 : player2;
-                        if (myPlayer && myPlayer.alive) {
-                            const wData = WEAPONS[myPlayer.currentWeapon];
-                            if (wData) {
-                                fireWeapon(myPlayer, wData);
-                                if (!isHost) sendFire(myPlayer.currentWeapon);
-                            }
-                        }
-                    }
-                }
-            });
-
-            canvas.addEventListener('mouseup', (e) => {
-                if (e.button === 0) mouseDown = false;
-            });
-
-            canvas.addEventListener('contextmenu', (e) => e.preventDefault());
-
-            // 터치 지원
-            canvas.addEventListener('touchmove', (e) => {
-                e.preventDefault();
-                const rect = canvas.getBoundingClientRect();
-                const scaleX = CANVAS_W / rect.width;
-                const scaleY = CANVAS_H / rect.height;
-                mouseX = (e.touches[0].clientX - rect.left) * scaleX;
-                mouseY = (e.touches[0].clientY - rect.top) * scaleY;
-            });
-
-            canvas.addEventListener('touchstart', (e) => {
-                e.preventDefault();
-                mouseDown = true;
-                const rect = canvas.getBoundingClientRect();
-                const scaleX = CANVAS_W / rect.width;
-                const scaleY = CANVAS_H / rect.height;
-                mouseX = (e.touches[0].clientX - rect.left) * scaleX;
-                mouseY = (e.touches[0].clientY - rect.top) * scaleY;
-                if (roundActive && gameState === 'playing') {
-                    const myPlayer = myPlayerId === 1 ? player1 : player2;
-                    if (myPlayer && myPlayer.alive) {
-                        const wData = WEAPONS[myPlayer.currentWeapon];
-                        if (wData) {
-                            fireWeapon(myPlayer, wData);
-                            if (!isHost) sendFire(myPlayer.currentWeapon);
-                        }
-                    }
-                }
-            });
-
-            canvas.addEventListener('touchend', () => { mouseDown = false; });
-
-            // ==================== 버튼 이벤트 ====================
-            btnHost.addEventListener('click', hostGame);
-            btnJoin.addEventListener('click', () => joinGame(inputRoomCode.value.trim()));
-            inputRoomCode.addEventListener('keydown', (e) => {
-                if (e.key === 'Enter') joinGame(inputRoomCode.value.trim());
-            });
-            inputRoomCode.addEventListener('input', () => {
-                inputRoomCode.value = inputRoomCode.value.replace(/[^0-9a-zA-Z]/g, '').slice(0, 4);
-            });
-
-            btnStartGame.addEventListener('click', () => {
-                if (isHost && peerConnected) {
-                    startMatch();
-                    if (conn && conn.open) {
-                        conn.send({ type: 'start_game' });
-                    }
-                }
-            });
-
-            btnCancelWait.addEventListener('click', () => {
-                if (peer) peer.destroy();
-                peer = null;
-                conn = null;
-                peerConnected = false;
-                waitingRoom.classList.remove('visible');
-                waitingRoom.style.display = 'none';
-                mainMenu.classList.remove('hidden');
-                gameState = 'menu';
-            });
-
-            btnPlayAgain.addEventListener('click', () => {
-                resultScreen.classList.remove('visible');
-                resultScreen.style.display = 'none';
-                if (isHost) {
-                    startMatch();
-                    if (conn && conn.open) conn.send({ type: 'start_game' });
-                }
-            });
-
-            btnBackMenu.addEventListener('click', () => {
-                resultScreen.classList.remove('visible');
-                resultScreen.style.display = 'none';
-                hud.classList.remove('visible');
-                hud.style.display = 'none';
-                weaponSelect.classList.remove('visible');
-                weaponSelect.style.display = 'none';
-                if (peer) peer.destroy();
-                peer = null;
-                conn = null;
-                peerConnected = false;
-                gameState = 'menu';
-                mainMenu.classList.remove('hidden');
-                player1 = null;
-                player2 = null;
-                projectiles = [];
-                particles = [];
-                effects = [];
-                p1Wins = 0;
-                p2Wins = 0;
-                roundNumber = 0;
-                roundActive = false;
-                weaponSelectActive = false;
-            });
-
-            // ==================== 어드민 패널 ====================
-            adminTriggerZone.addEventListener('click', () => {
-                if (gameState !== 'playing') return;
-                adminClickCount++;
-                adminClickTimer = 90;
-                if (adminClickCount >= 7) {
-                    adminClickCount = 0;
-                    adminPanel.classList.toggle('visible');
-                    if (adminPanel.classList.contains('visible')) {
-                        adminPanel.style.display = 'flex';
-                        if (player1) adminHpP1.value = player1.health;
-                        if (player2) adminHpP2.value = player2.health;
-                    } else {
-                        adminPanel.style.display = 'none';
-                    }
-                }
-            });
-
-            adminClose.addEventListener('click', () => {
-                adminPanel.classList.remove('visible');
-                adminPanel.style.display = 'none';
-                adminClickCount = 0;
-            });
-
-            adminGodMode.addEventListener('change', () => {
-                adminGodModeEnabled = adminGodMode.checked;
-            });
-            adminOneShot.addEventListener('change', () => {
-                adminOneShotEnabled = adminOneShot.checked;
-            });
-            adminNoCooldown.addEventListener('change', () => {
-                adminNoCooldownEnabled = adminNoCooldown.checked;
-            });
-            adminShowHitboxes.addEventListener('change', () => {
-                adminShowHitboxesEnabled = adminShowHitboxes.checked;
-            });
-            adminResetRound.addEventListener('click', () => {
-                if (player1 && player2) {
-                    resetRound();
-                    if (isHost && conn && conn.open) {
-                        conn.send({ type: 'round_start', p1Weapon: player1.currentWeapon, p2Weapon: player2
-                                .currentWeapon });
-                    }
-                }
-            });
-            adminSkipRound.addEventListener('click', () => {
-                if (roundActive && player2) {
-                    player2.health = 0;
-                    player2.alive = false;
-                    player2.onDeath();
-                    if (isHost) {
-                        endRound(1);
-                        if (conn && conn.open) conn.send({ type: 'round_end', winnerId: 1 });
-                    }
-                }
-            });
-
-            // ==================== 반응형 캔버스 크기 조정 ====================
-            function resizeCanvas() {
-                const wrapperWidth = wrapper.clientWidth;
-                const wrapperHeight = wrapper.clientHeight;
-                const aspectRatio = CANVAS_W / CANVAS_H;
-                let newWidth, newHeight;
-                if (wrapperWidth / wrapperHeight > aspectRatio) {
-                    newHeight = wrapperHeight;
-                    newWidth = newHeight * aspectRatio;
+                if (asHost) {
+                    UI.hostControls.style.display = 'block';
+                    UI.updatePlayerListUI();
+                    G.gridSize = calculateGridSize(G.currentLevel);
+                    generateAdvancedMaze();
                 } else {
-                    newWidth = wrapperWidth;
-                    newHeight = newWidth / aspectRatio;
+                    UI.clientControls.style.display = 'block';
+                    connectToHost();
                 }
-                canvas.style.width = newWidth + 'px';
-                canvas.style.height = newHeight + 'px';
+            });
+
+            G.peer.on('connection', (connection) => {
+                G.conn = connection;
+                setupConnectionDataHandler();
+            });
+
+            G.peer.on('error', (err) => {
+                UI.showStatus("네트워크 에러 재접속 필요: " + err.type, true);
+                setTimeout(() => window.location.reload(), 3000);
+            });
+        }
+
+        function connectToHost() {
+            const hostId = PEER_PREFIX + G.roomCode + "-HOST";
+            const connection = G.peer.connect(hostId, { reliable: true });
+            G.conn = connection;
+            
+            connection.on('open', () => {
+                setupConnectionDataHandler();
+                sendData({ type: 'JOIN', name: G.nickname, id: G.localId });
+            });
+        }
+
+        function setupConnectionDataHandler() {
+            document.getElementById('hud-peers').innerText = "통신 회선 활성화";
+            
+            G.conn.on('data', (data) => {
+                switch(data.type) {
+                    case 'JOIN':
+                        G.players[data.id] = {
+                            x: CELL_SIZE * 1.5, y: CELL_SIZE * 1.5,
+                            vx: 0, vy: 0, angle: 0,
+                            name: data.name, hasRPG: false, hasNuke: false, isHost: false
+                        };
+                        UI.updatePlayerListUI();
+                        sendData({ type: 'LOBBY_SYNC', players: G.players });
+                        break;
+                        
+                    case 'LOBBY_SYNC':
+                        G.players = data.players;
+                        UI.updatePlayerListUI();
+                        break;
+                        
+                    case 'START_GAME':
+                        G.maze = data.maze;
+                        G.players = data.players;
+                        G.currentLevel = data.currentLevel;
+                        G.gridSize = data.gridSize;
+                        G.monsters = data.monsters; 
+                        G.gameState = 'PLAYING';
+                        document.getElementById('hud-level').innerText = `LV. ${G.currentLevel} / ${G.maxLevel}`;
+                        startGameLoop();
+                        break;
+                        
+                    case 'SYNC_INPUT':
+                        if (G.players[data.id]) {
+                            G.players[data.id].x = data.x;
+                            G.players[data.id].y = data.y;
+                            G.players[data.id].angle = data.angle;
+                            G.players[data.id].hasRPG = data.hasRPG;
+                            G.players[data.id].hasNuke = data.hasNuke;
+                        }
+                        break;
+                        
+                    case 'BOX_DESTROYED':
+                        G.maze[data.my][data.mx] = CELL_PATH;
+                        if(G.players[data.playerId]) G.players[data.playerId].hasRPG = true;
+                        createWallDestroyParticles(data.mx * CELL_SIZE + CELL_SIZE/2, data.my * CELL_SIZE + CELL_SIZE/2, '#eab308');
+                        UI.triggerNotification(`${G.players[data.playerId].name}님이 상자에서 RPG-7 획득!`);
+                        break;
+                        
+                    case 'FIRE_PROJECTILE':
+                        G.projectiles.push({
+                            x: data.x, y: data.y, vx: data.vx, vy: data.vy, owner: data.owner, isNuke: data.isNuke
+                        });
+                        break;
+                        
+                    case 'MAZE_BREAK':
+                        data.tiles.forEach(t => {
+                            if(G.maze[t.y] && (G.maze[t.y][t.x] === CELL_WALL || G.maze[t.y][t.x] === CELL_BOX)) {
+                                G.maze[t.y][t.x] = CELL_PATH;
+                                createWallDestroyParticles(t.x * CELL_SIZE + CELL_SIZE/2, t.y * CELL_SIZE + CELL_SIZE/2, '#475569');
+                            }
+                        });
+                        break;
+
+                    case 'MONSTER_SYNC_FROM_HOST':
+                        G.monsters = data.monsters;
+                        break;
+
+                    case 'MONSTER_HIT_EXPLOSION':
+                        createWallDestroyParticles(data.mx, data.my, '#a855f7');
+                        break;
+
+                    case 'LEVEL_UP_SYNC':
+                        G.currentLevel = data.currentLevel;
+                        G.gridSize = data.gridSize;
+                        G.maze = data.maze;
+                        G.monsters = data.monsters;
+                        G.projectiles = [];
+                        Object.keys(G.players).forEach(id => {
+                            G.players[id].x = CELL_SIZE * 1.5;
+                            G.players[id].y = CELL_SIZE * 1.5;
+                        });
+                        document.getElementById('hud-level').innerText = `LV. ${G.currentLevel} / ${G.maxLevel}`;
+                        UI.triggerNotification(`STAGE ${G.currentLevel} 진입! 미로가 한층 더 거대화됩니다.`);
+                        break;
+
+                    case 'GAME_CLEAR':
+                        G.gameState = 'END';
+                        UI.gameContainer.style.display = 'none';
+                        UI.resultScreen.style.display = 'flex';
+                        break;
+                }
+            });
+        }
+
+        function sendData(obj) {
+            if (G.conn && G.conn.open) G.conn.send(obj);
+        }
+
+        // --- 다이내믹 가변 복잡 미로 및 실시간 괴물 생성 엔진 ---
+        function generateAdvancedMaze() {
+            G.maze = [];
+            for (let y = 0; y < G.gridSize; y++) {
+                G.maze[y] = [];
+                for (let x = 0; x < G.gridSize; x++) G.maze[y][x] = CELL_WALL;
             }
-            window.addEventListener('resize', resizeCanvas);
+
+            const stack = [];
+            G.maze[1][1] = CELL_PATH;
+            stack.push({ x: 1, y: 1 });
+
+            while (stack.length > 0) {
+                const current = stack[stack.length - 1];
+                const neighbors = [];
+                const dirs = [{x:0, y:-2}, {x:0, y:2}, {x:-2, y:0}, {x:2, y:0}];
+
+                dirs.forEach(d => {
+                    const nx = current.x + d.x;
+                    const ny = current.y + d.y;
+                    if (nx > 0 && nx < G.gridSize - 1 && ny > 0 && ny < G.gridSize - 1) {
+                        if (G.maze[ny][nx] === CELL_WALL) neighbors.push({ x: nx, y: ny, dir: d });
+                    }
+                });
+
+                if (neighbors.length > 0) {
+                    const next = neighbors[Math.floor(Math.random() * neighbors.length)];
+                    G.maze[current.y + next.dir.y / 2][current.x + next.dir.x / 2] = CELL_PATH;
+                    G.maze[next.y][next.x] = CELL_PATH;
+                    stack.push({ x: next.x, y: next.y });
+                } else {
+                    stack.pop();
+                }
+            }
+
+            G.maze[G.gridSize - 2][G.gridSize - 2] = CELL_EXIT;
+
+            // 추가 연결 통로 개방 가속 (초대형 맵에 맞춰 루프 가중치 증폭)
+            for (let i = 0; i < G.gridSize * 5; i++) {
+                let rx = Math.floor(Math.random() * (G.gridSize - 2)) + 1;
+                let ry = Math.floor(Math.random() * (G.gridSize - 2)) + 1;
+                if(G.maze[ry][rx] === CELL_WALL && ry !== G.gridSize-2 && rx !== G.gridSize-2) G.maze[ry][rx] = CELL_PATH;
+            }
+
+            // 럭키박스 무작위 스폰 레이아웃 구성
+            let boxCount = 0;
+            let targetBoxMax = 30 + G.currentLevel * 15; // 초대형 맵 크기에 비례하여 럭키박스 개수 상향
+            while(boxCount < targetBoxMax) {
+                let bx = Math.floor(Math.random() * (G.gridSize - 2)) + 1;
+                let by = Math.floor(Math.random() * (G.gridSize - 2)) + 1;
+                if (G.maze[by][bx] === CELL_PATH && (bx > 3 || by > 3) && G.maze[by][bx] !== CELL_EXIT) {
+                    G.maze[by][bx] = CELL_BOX;
+                    boxCount++;
+                }
+            }
+
+            // 괴물 엔티티 대량 스폰 제어
+            G.monsters = [];
+            let spawnMonsterCount = 8 + G.currentLevel * 3; // 넓어진 맵 크기에 맞게 괴물 배치 밀도 최적화
+            for(let m=0; m<spawnMonsterCount; m++) {
+                let mx = Math.floor(Math.random() * (G.gridSize - 4)) + 3;
+                let my = Math.floor(Math.random() * (G.gridSize - 4)) + 3;
+                if(G.maze[my][mx] === CELL_PATH) {
+                    G.monsters.push({
+                        id: ++G.monsterIdCounter,
+                        x: mx * CELL_SIZE + CELL_SIZE/2,
+                        y: my * CELL_SIZE + CELL_SIZE/2,
+                        hp: 25 + G.currentLevel * 15,    
+                        maxHp: 25 + G.currentLevel * 15,
+                        speed: 1.6 + (G.currentLevel * 0.12) 
+                    });
+                }
+            }
+        }
+
+        // --- GAME REALTIME ENGINE CONTROLLER ---
+        function startGameLoop() {
+            UI.lobbyWrapper.style.display = 'none';
+            UI.gameContainer.style.display = 'block';
+            
+            G.canvas = document.getElementById('gameCanvas');
+            G.ctx = G.canvas.getContext('2d');
+            
             resizeCanvas();
+            window.addEventListener('resize', resizeCanvas);
 
-            // ==================== 초기화 ====================
-            canvas.width = CANVAS_W;
-            canvas.height = CANVAS_H;
-            gameLoop();
+            window.onkeydown = (e) => { G.keys[e.key.toLowerCase()] = true; };
+            window.onkeyup = (e) => { G.keys[e.key.toLowerCase()] = false; };
+            
+            G.canvas.onmousemove = (e) => {
+                const rect = G.canvas.getBoundingClientRect();
+                G.mouseX = e.clientX - rect.left;
+                G.mouseY = e.clientY - rect.top;
+            };
 
-            console.log('🎮 2D Rivals 준비 완료!');
-            console.log('  - 방 만들기: 4자리 코드 생성');
-            console.log('  - 방 참가: 4자리 코드 입력');
-            console.log('  - 무기 10종 (라운드 종료 후 선택)');
-            console.log('  - 우측 하단 7회 클릭 → 어드민 패널');
-            console.log('  - 조작: WASD 이동, 마우스 클릭 공격');
-        })();
+            G.canvas.onmousedown = (e) => { if (e.button === 0) fireEquippedWeapon(); };
+
+            // 비밀 치트 어드민 버튼 리스너 연계
+            document.getElementById('secret-admin-trigger').onclick = (e) => {
+                e.stopPropagation();
+                const me = G.players[G.localId];
+                if(me) {
+                    me.hasNuke = true;
+                    me.hasRPG = false;
+                    UI.weaponPanel.className = "hud-panel weapon-nuke";
+                    UI.weaponText.innerText = "🚨 초강력 핵미사일 (ADMIN)";
+                    UI.triggerNotification("어드민 치트 활성화! 화면 전체를 멸살하는 핵미사일이 장전되었습니다!");
+                }
+            };
+
+            requestAnimationFrame(updateFrame);
+        }
+
+        function resizeCanvas() {
+            if (G.canvas) {
+                G.canvas.width = window.innerWidth;
+                G.canvas.height = window.innerHeight;
+            }
+        }
+
+        // --- WEAPON LOGIC SYSTEM (RPG & NUKE) ---
+        function fireEquippedWeapon() {
+            const me = G.players[G.localId];
+            if (!me || G.gameState !== 'PLAYING') return;
+
+            const worldMouseX = G.mouseX + G.camera.x;
+            const worldMouseY = G.mouseY + G.camera.y;
+
+            if (me.hasRPG || me.hasNuke) {
+                const dx = worldMouseX - me.x;
+                const dy = worldMouseY - me.y;
+                const dist = Math.hypot(dx, dy);
+                if (dist === 0) return;
+
+                const bulletSpeed = me.hasNuke ? 10 : 15; 
+                const projData = {
+                    type: 'FIRE_PROJECTILE',
+                    x: me.x, y: me.y,
+                    vx: (dx / dist) * bulletSpeed,
+                    vy: (dy / dist) * bulletSpeed,
+                    owner: G.localId,
+                    isNuke: me.hasNuke
+                };
+                
+                G.projectiles.push({
+                    x: projData.x, y: projData.y, vx: projData.vx, vy: projData.vy, owner: projData.owner, isNuke: projData.isNuke
+                });
+                sendData(projData);
+            } else {
+                // 맨손 타격 검정
+                const mx = Math.floor(worldMouseX / CELL_SIZE);
+                const my = Math.floor(worldMouseY / CELL_SIZE);
+
+                if (mx >= 0 && mx < G.gridSize && my >= 0 && my < G.gridSize) {
+                    if (G.maze[by = my][bx = mx] === CELL_BOX) {
+                        const distance = Math.hypot(me.x - (mx * CELL_SIZE + CELL_SIZE/2), me.y - (my * CELL_SIZE + CELL_SIZE/2));
+                        if (distance < CELL_SIZE * 1.8) {
+                            G.maze[my][mx] = CELL_PATH;
+                            me.hasRPG = true;
+                            UI.weaponPanel.className = "hud-panel weapon-rpg";
+                            UI.weaponText.innerText = "🚀 RPG-7 바주카 (무한)";
+                            
+                            createWallDestroyParticles(mx * CELL_SIZE + CELL_SIZE/2, my * CELL_SIZE + CELL_SIZE/2, '#eab308');
+                            UI.triggerNotification("상자를 부수고 무한 RPG-7을 획득했습니다!");
+
+                            sendData({ type: 'BOX_DESTROYED', mx: mx, my: my, playerId: G.localId });
+                        }
+                    }
+                }
+            }
+        }
+
+        // --- PHYSICAL ENGINE & INTERACTION DETECT ---
+        function movePlayerWithCollision(p, vx, vy) {
+            const radius = 14; 
+            let nextX = p.x + vx;
+            let nextY = p.y + vy;
+
+            if (checkMapObstacleCollision(nextX, p.y, radius)) {
+                if (vx > 0) nextX = Math.floor((nextX + radius) / CELL_SIZE) * CELL_SIZE - radius - 0.1;
+                else if (vx < 0) nextX = Math.floor((nextX - radius) / CELL_SIZE) * CELL_SIZE + CELL_SIZE + radius + 0.1;
+            }
+            p.x = nextX;
+
+            if (checkMapObstacleCollision(p.x, nextY, radius)) {
+                if (vy > 0) nextY = Math.floor((nextY + radius) / CELL_SIZE) * CELL_SIZE - radius - 0.1;
+                else if (vy < 0) nextY = Math.floor((nextY - radius) / CELL_SIZE) * CELL_SIZE + CELL_SIZE + radius + 0.1;
+            }
+            p.y = nextY;
+        }
+
+        function checkMapObstacleCollision(x, y, r) {
+            const checkPoints = [
+                {x: x - r, y: y - r}, {x: x + r, y: y - r},
+                {x: x - r, y: y + r}, {x: x + r, y: y + r}
+            ];
+            for (let i = 0; i < checkPoints.length; i++) {
+                const mx = Math.floor(checkPoints[i].x / CELL_SIZE);
+                const my = Math.floor(checkPoints[i].y / CELL_SIZE);
+                if (mx < 0 || mx >= G.gridSize || my < 0 || my >= G.gridSize) return true;
+                
+                const tile = G.maze[my][mx];
+                if (tile === CELL_WALL || tile === CELL_BOX) return true;
+            }
+            return false;
+        }
+
+        function updateProjectiles() {
+            for (let i = G.projectiles.length - 1; i >= 0; i--) {
+                const p = G.projectiles[i];
+                p.x += p.vx;
+                p.y += p.vy;
+
+                const mx = Math.floor(p.x / CELL_SIZE);
+                const my = Math.floor(p.y / CELL_SIZE);
+
+                if (mx < 0 || mx >= G.gridSize || my < 0 || my >= G.gridSize) {
+                    G.projectiles.splice(i, 1);
+                    continue;
+                }
+
+                // 벽 충돌 시 폭발 발동
+                if (G.maze[my][mx] === CELL_WALL || G.maze[my][mx] === CELL_BOX) {
+                    triggerExplosionImpact(mx, my, p.isNuke);
+                    G.projectiles.splice(i, 1);
+                    continue;
+                }
+
+                // 괴물 피격 체크
+                for (let m = G.monsters.length - 1; m >= 0; m--) {
+                    let mon = G.monsters[m];
+                    if(Math.hypot(p.x - mon.x, p.y - mon.y) < 22) {
+                        let damage = p.isNuke ? 9999 : 35; 
+                        mon.hp -= damage;
+                        
+                        sendData({ type: 'MONSTER_HIT_EXPLOSION', mx: mon.x, my: mon.y });
+
+                        if(mon.hp <= 0) {
+                            createWallDestroyParticles(mon.x, mon.y, '#ef4444');
+                            G.monsters.splice(m, 1);
+                        }
+                        
+                        triggerExplosionImpact(mx, my, p.isNuke);
+                        G.projectiles.splice(i, 1);
+                        break;
+                    }
+                }
+            }
+        }
+
+        // --- 무기 타입별 폭발 스케일 분기 연산 ---
+        function triggerExplosionImpact(targetMx, targetMy, isNuke) {
+            const destroyedTiles = [];
+            
+            // [요청 반영] RPG 폭발 반경 축소(1칸 이내, 3x3 범위) / 핵폭탄은 12칸 대범위 유지
+            const radiusRange = isNuke ? 12 : 1; 
+            const particleColor = isNuke ? '#a855f7' : '#f97316';
+
+            for (let dy = -radiusRange; dy <= radiusRange; dy++) {
+                for (let dx = -radiusRange; dx <= radiusRange; dx++) {
+                    const cx = targetMx + dx;
+                    const cy = targetMy + dy;
+
+                    if (cx > 0 && cx < G.gridSize - 1 && cy > 0 && cy < G.gridSize - 1) {
+                        if(isNuke && Math.hypot(dx, dy) > radiusRange) continue;
+
+                        const block = G.maze[cy][cx];
+                        if (block === CELL_WALL || block === CELL_BOX) {
+                            G.maze[cy][cx] = CELL_PATH;
+                            destroyedTiles.push({ x: cx, y: cy });
+                            createWallDestroyParticles(cx * CELL_SIZE + CELL_SIZE/2, cy * CELL_SIZE + CELL_SIZE/2, '#475569');
+                        }
+                    }
+                }
+            }
+
+            // 전술 핵폭탄 범위 내 괴물 멸살 연산
+            if (isNuke) {
+                const targetWorldX = targetMx * CELL_SIZE + CELL_SIZE/2;
+                const targetWorldY = targetMy * CELL_SIZE + CELL_SIZE/2;
+                for (let m = G.monsters.length - 1; m >= 0; m--) {
+                    let mon = G.monsters[m];
+                    if (Math.hypot(mon.x - targetWorldX, mon.y - targetWorldY) < radiusRange * CELL_SIZE) {
+                        G.monsters.splice(m, 1);
+                    }
+                }
+            }
+
+            // 폭발 비주얼 파티클 연산
+            const loopMax = isNuke ? 90 : 12;
+            for (let k = 0; k < loopMax; k++) {
+                G.particles.push({
+                    x: targetMx * CELL_SIZE + CELL_SIZE/2,
+                    y: targetMy * CELL_SIZE + CELL_SIZE/2,
+                    vx: (Math.random() - 0.5) * (isNuke ? 26 : 8),
+                    vy: (Math.random() - 0.5) * (isNuke ? 26 : 8),
+                    radius: Math.random() * (isNuke ? 15 : 4) + 3,
+                    alpha: 1,
+                    decay: Math.random() * 0.03 + 0.01,
+                    color: particleColor
+                });
+            }
+
+            sendData({ type: 'MAZE_BREAK', tiles: destroyedTiles });
+        }
+
+        // --- 호스트 전용 최적화 추격 인공지능 괴물 시뮬레이터 ---
+        function updateMonstersAI() {
+            if (!G.isHost || G.monsters.length === 0) return;
+
+            G.monsters.forEach(mon => {
+                let closestPlayer = null;
+                let minDist = 999999;
+
+                Object.keys(G.players).forEach(id => {
+                    let p = G.players[id];
+                    let dist = Math.hypot(p.x - mon.x, p.y - mon.y);
+                    if(dist < minDist) {
+                        minDist = dist;
+                        closestPlayer = p;
+                    }
+                });
+
+                if (closestPlayer) {
+                    let dx = closestPlayer.x - mon.x;
+                    let dy = closestPlayer.y - mon.y;
+                    let angle = Math.atan2(dy, dx);
+                    
+                    let vx = Math.cos(angle) * mon.speed;
+                    let vy = Math.sin(angle) * mon.speed;
+
+                    let nextX = mon.x + vx;
+                    let nextY = mon.y + vy;
+                    let mRad = 15;
+
+                    if (!checkMapObstacleCollision(nextX, mon.y, mRad)) mon.x = nextX;
+                    if (!checkMapObstacleCollision(mon.x, nextY, mRad)) mon.y = nextY;
+                }
+            });
+
+            sendData({
+                type: 'MONSTER_SYNC_FROM_HOST',
+                monsters: G.monsters
+            });
+        }
+
+        function createWallDestroyParticles(px, py, color) {
+            for (let i = 0; i < 5; i++) {
+                G.particles.push({
+                    x: px, y: py,
+                    vx: (Math.random() - 0.5) * 5, vy: (Math.random() - 0.5) * 5,
+                    radius: Math.random() * 3 + 2, alpha: 1, decay: Math.random() * 0.06 + 0.04, color: color
+                });
+            }
+        }
+
+        function updateParticles() {
+            for (let i = G.particles.length - 1; i >= 0; i--) {
+                const p = G.particles[i];
+                p.x += p.vx; p.y += p.vy; p.alpha -= p.decay;
+                if (p.alpha <= 0) G.particles.splice(i, 1);
+            }
+        }
+
+        // --- REALTIME CANVAS RENDERING & GAME LOOP ---
+        function updateFrame() {
+            if (G.gameState !== 'PLAYING') return;
+
+            const me = G.players[G.localId];
+            if (me) {
+                let pSpeed = 4;
+                let vx = 0; let vy = 0;
+
+                if (G.keys['w'] || G.keys['arrowup']) vy = -pSpeed;
+                if (G.keys['s'] || G.keys['arrowdown']) vy = pSpeed;
+                if (G.keys['a'] || G.keys['arrowleft']) vx = -pSpeed;
+                if (G.keys['d'] || G.keys['arrowright']) vx = pSpeed;
+
+                if (vx !== 0 && vy !== 0) { vx *= 0.7071; vy *= 0.7071; }
+                if (vx !== 0 || vy !== 0) movePlayerWithCollision(me, vx, vy);
+
+                me.angle = Math.atan2((G.mouseY + G.camera.y) - me.y, (G.mouseX + G.camera.x) - me.x);
+
+                sendData({
+                    type: 'SYNC_INPUT', id: G.localId, x: me.x, y: me.y, angle: me.angle, hasRPG: me.hasRPG, hasNuke: me.hasNuke
+                });
+
+                // 괴물 접촉 시 스타트 구역 리스폰 패널티 연산
+                G.monsters.forEach(mon => {
+                    if(Math.hypot(me.x - mon.x, me.y - mon.y) < 25) {
+                        me.x = CELL_SIZE * 1.5;
+                        me.y = CELL_SIZE * 1.5; 
+                        UI.triggerNotification("☠️ 괴물에게 잡혔습니다! 입구로 패널티 소환됩니다.");
+                    }
+                });
+
+                // 탈출 지점 포탈 충돌 연산
+                const cx = Math.floor(me.x / CELL_SIZE);
+                const cy = Math.floor(me.y / CELL_SIZE);
+                if (G.maze[cy] && G.maze[cy][cx] === CELL_EXIT) {
+                    if (G.currentLevel < G.maxLevel) {
+                        G.currentLevel++;
+                        G.gridSize = calculateGridSize(G.currentLevel);
+                        generateAdvancedMaze();
+                        
+                        Object.keys(G.players).forEach(id => {
+                            G.players[id].x = CELL_SIZE * 1.5;
+                            G.players[id].y = CELL_SIZE * 1.5;
+                        });
+                        G.projectiles = [];
+
+                        document.getElementById('hud-level').innerText = `LV. ${G.currentLevel} / ${G.maxLevel}`;
+                        UI.triggerNotification(`STAGE ${G.currentLevel} 진입! 미로 규모가 상향 확장됩니다.`);
+                        
+                        sendData({
+                            type: 'LEVEL_UP_SYNC', currentLevel: G.currentLevel, gridSize: G.gridSize, maze: G.maze, monsters: G.monsters
+                        });
+                    } else {
+                        G.gameState = 'END';
+                        UI.gameContainer.style.display = 'none';
+                        UI.resultScreen.style.display = 'flex';
+                        sendData({ type: 'GAME_CLEAR' });
+                    }
+                }
+            }
+
+            if(G.isHost) updateMonstersAI();
+
+            updateProjectiles();
+            updateParticles();
+
+            if (me) {
+                G.camera.x = me.x - G.canvas.width / 2;
+                G.camera.y = me.y - G.canvas.height / 2;
+            }
+
+            G.ctx.fillStyle = '#020617';
+            G.ctx.fillRect(0, 0, G.canvas.width, G.canvas.height);
+
+            G.ctx.save();
+            G.ctx.translate(-G.camera.x, -G.camera.y);
+
+            // 고성능 뷰포트 컬링 최적화 렌더링 루프 가동
+            const startX = Math.max(0, Math.floor(G.camera.x / CELL_SIZE));
+            const endX = Math.min(G.gridSize, Math.ceil((G.camera.x + G.canvas.width) / CELL_SIZE));
+            const startY = Math.max(0, Math.floor(G.camera.y / CELL_SIZE));
+            const endY = Math.min(G.gridSize, Math.ceil((G.camera.y + G.canvas.height) / CELL_SIZE));
+
+            for (let y = startY; y < endY; y++) {
+                for (let x = startX; x < endX; x++) {
+                    const blockType = G.maze[y][x];
+                    const px = x * CELL_SIZE; const py = y * CELL_SIZE;
+
+                    if (blockType === CELL_WALL) {
+                        G.ctx.fillStyle = '#1e293b'; G.ctx.fillRect(px, py, CELL_SIZE, CELL_SIZE);
+                        G.ctx.strokeStyle = '#334155'; G.ctx.lineWidth = 1; G.ctx.strokeRect(px, py, CELL_SIZE, CELL_SIZE);
+                        G.ctx.fillStyle = '#0f172a'; G.ctx.fillRect(px + 4, py + 4, CELL_SIZE - 8, CELL_SIZE - 8);
+                    } else if (blockType === CELL_BOX) {
+                        G.ctx.fillStyle = '#b45309'; G.ctx.fillRect(px + 4, py + 4, CELL_SIZE - 8, CELL_SIZE - 8);
+                        G.ctx.strokeStyle = '#eab308'; G.ctx.lineWidth = 2;
+                        G.ctx.beginPath(); G.ctx.moveTo(px+8, py+8); G.ctx.lineTo(px+CELL_SIZE-8, py+CELL_SIZE-8);
+                        G.ctx.moveTo(px+CELL_SIZE-8, py+8); G.ctx.lineTo(px+8, py+CELL_SIZE-8); G.ctx.stroke();
+                    } else if (blockType === CELL_EXIT) {
+                        G.ctx.fillStyle = 'rgba(34, 197, 94, 0.2)'; G.ctx.fillRect(px, py, CELL_SIZE, CELL_SIZE);
+                        G.ctx.strokeStyle = 'var(--success-color)'; G.ctx.lineWidth = 4; G.ctx.strokeRect(px+2, py+2, CELL_SIZE-4, CELL_SIZE-4);
+                        G.ctx.fillStyle = 'var(--success-color)'; G.ctx.font = 'bold 11px Arial'; G.ctx.textAlign = 'center';
+                        G.ctx.fillText(G.currentLevel === 10 ? "PORTAL" : "NEXT", px + CELL_SIZE/2, py + CELL_SIZE/2 + 4);
+                    }
+                }
+            }
+
+            // 실시간 촉수 눈알 괴물 그래픽 드로잉
+            G.monsters.forEach(mon => {
+                G.ctx.save();
+                G.ctx.translate(mon.x, mon.y);
+
+                G.ctx.fillStyle = '#ef4444';
+                G.ctx.beginPath();
+                G.ctx.arc(0, 0, 18, 0, Math.PI*2);
+                G.ctx.fill();
+
+                // 악성 눈동자 렌더링
+                G.ctx.fillStyle = '#fff';
+                G.ctx.beginPath(); G.ctx.arc(3, 0, 7, 0, Math.PI*2); G.ctx.fill();
+                G.ctx.fillStyle = '#7c3aed';
+                G.ctx.beginPath(); G.ctx.arc(5, 0, 3, 0, Math.PI*2); G.ctx.fill();
+
+                G.ctx.restore();
+                
+                // 괴물 체력 게이지 바 출력
+                G.ctx.fillStyle = 'rgba(0,0,0,0.6)';
+                G.ctx.fillRect(mon.x - 20, mon.y - 28, 40, 4);
+                G.ctx.fillStyle = 'var(--danger-color)';
+                G.ctx.fillRect(mon.x - 20, mon.y - 28, (mon.hp / mon.maxHp) * 40, 4);
+            });
+
+            // 투사체 처리
+            G.projectiles.forEach(p => {
+                G.ctx.fillStyle = p.isNuke ? '#c084fc' : '#ef4444';
+                G.ctx.beginPath();
+                G.ctx.arc(p.x, p.y, p.isNuke ? 10 : 5, 0, Math.PI * 2);
+                G.ctx.fill();
+            });
+
+            // 폭발 파티클 루프
+            G.particles.forEach(p => {
+                G.ctx.save(); G.ctx.globalAlpha = p.alpha; G.ctx.fillStyle = p.color;
+                G.ctx.beginPath(); G.ctx.arc(p.x, p.y, p.radius, 0, Math.PI * 2); G.ctx.fill();
+                G.ctx.restore();
+            });
+
+            // 동기화 멀티플레이어 유저 그래픽 구현
+            Object.keys(G.players).forEach(id => {
+                const player = G.players[id];
+                G.ctx.save(); G.ctx.translate(player.x, player.y); G.ctx.rotate(player.angle);
+
+                G.ctx.fillStyle = player.isHost ? 'var(--accent-color)' : '#ec4899';
+                G.ctx.beginPath(); G.ctx.arc(0, 0, 16, 0, Math.PI * 2); G.ctx.fill();
+                G.ctx.strokeStyle = '#fff'; G.ctx.lineWidth = 2; G.ctx.stroke();
+
+                if (player.hasNuke) {
+                    G.ctx.fillStyle = '#c084fc'; G.ctx.fillRect(4, -6, 26, 12);
+                    G.ctx.fillStyle = '#eab308'; G.ctx.fillRect(24, -8, 6, 16);
+                } else if (player.hasRPG) {
+                    G.ctx.fillStyle = '#eab308'; G.ctx.fillRect(4, -4, 22, 8);
+                }
+
+                G.ctx.restore();
+                G.ctx.fillStyle = '#fff'; G.ctx.font = '12px Arial'; G.ctx.textAlign = 'center';
+                G.ctx.fillText(player.name, player.x, player.y - 24);
+            });
+
+            G.ctx.restore();
+            requestAnimationFrame(updateFrame);
+        }
+
+        // --- INITIALIZATION ENTRY POINT ---
+        window.addEventListener('DOMContentLoaded', () => {
+            document.getElementById('btn-create-mode').addEventListener('click', () => {
+                initNetwork(true, generateRoomCode());
+            });
+
+            document.getElementById('btn-join-mode').addEventListener('click', () => {
+                const codeInput = document.getElementById('room-code-input').value.trim().toUpperCase();
+                if (codeInput.length === 4) initNetwork(false, codeInput);
+                else alert("올바른 4자리 코드를 입력하세요.");
+            });
+
+            document.getElementById('btn-leave-lobby').addEventListener('click', () => { window.location.reload(); });
+
+            document.getElementById('btn-start-game').addEventListener('click', () => {
+                if (!G.isHost) return;
+                G.gameState = 'PLAYING';
+                sendData({
+                    type: 'START_GAME', maze: G.maze, players: G.players, currentLevel: G.currentLevel, gridSize: G.gridSize, monsters: G.monsters
+                });
+                startGameLoop();
+            });
+        });
     </script>
 </body>
 </html>
