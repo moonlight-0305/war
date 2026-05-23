@@ -3,1200 +3,2133 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>2D 멀티플레이어 미로 파괴 탈출 RPG - 찐 최종 인피니티 에디션</title>
-    <!-- 외부 라이브러리: PeerJS (P2P 통신용) -->
-    <script src="https://unpkg.com/peerjs@1.5.2/dist/peerjs.min.js"></script>
+    <title>ROBLOX RIVALS 2D - 1v1 P2P Arena</title>
+    <!-- PeerJS Library 라이브러리 로드 -->
+    <script src="https://unpkg.com/peerjs@1.5.4/dist/peerjs.min.js"></script>
     <style>
-        /* 1. 디자인 시스템 및 테마 정의 */
         :root {
-            --bg-dark: #0f172a;
-            --panel-bg: #1e293b;
-            --accent-color: #38bdf8;
-            --accent-hover: #0ea5e9;
-            --danger-color: #ef4444;
-            --success-color: #22c55e;
-            --text-main: #f8fafc;
-            --text-muted: #94a3b8;
-            --gold: #eab308;
-            --purple: #a855f7;
+            --bg-dark: #0a0b10;
+            --panel-bg: rgba(20, 24, 35, 0.85);
+            --border-color: #3a3f50;
+            --accent-color: #ff4757;
+            --accent-success: #2ed573;
+            --accent-blue: #1e90ff;
+            --text-main: #ffffff;
+            --text-muted: #a4b0be;
+            --roblox-gold: #f1c40f;
         }
 
         * {
             box-sizing: border-box;
             margin: 0;
             padding: 0;
-            font-family: 'Segoe UI', Roboto, Helvetica, Arial, sans-serif;
             user-select: none;
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
         }
 
-        body {
+        body, html {
+            width: 100%;
+            height: 100%;
             background-color: var(--bg-dark);
             color: var(--text-main);
             overflow: hidden;
-            width: 100vw;
-            height: 100vh;
+        }
+
+        #ui-container {
+            position: absolute;
+            width: 100%;
+            height: 100%;
+            z-index: 10;
+            pointer-events: none;
+        }
+
+        .screen {
+            position: absolute;
+            width: 100%;
+            height: 100%;
+            top: 0;
+            left: 0;
             display: flex;
+            flex-direction: column;
             justify-content: center;
             align-items: center;
+            background: radial-gradient(circle, rgba(18,24,38,1) 0%, rgba(10,11,16,1) 100%);
+            pointer-events: auto;
+            transition: opacity 0.3s ease, transform 0.3s ease;
         }
 
-        /* 2. 대기실 (Lobby) UI 레이아웃 */
-        #lobby-container {
-            width: 500px;
+        .screen.hidden {
+            opacity: 0;
+            transform: scale(0.95);
+            pointer-events: none;
+        }
+
+        /* 메인 메뉴 스타일링 */
+        .menu-panel {
             background: var(--panel-bg);
-            border: 2px solid var(--accent-color);
-            border-radius: 16px;
-            padding: 30px;
-            box-shadow: 0 10px 30px rgba(0, 0, 0, 0.5);
-            transition: all 0.3s ease;
-            z-index: 10;
+            border: 2px solid var(--border-color);
+            border-radius: 12px;
+            padding: 40px;
+            width: 500px;
+            max-width: 90%;
+            text-align: center;
+            box-shadow: 0 20px 40px rgba(0,0,0,0.5);
+            backdrop-filter: blur(10px);
         }
 
-        .lobby-title {
-            text-align: center;
-            font-size: 28px;
-            margin-bottom: 25px;
-            color: var(--accent-color);
+        h1 {
+            font-size: 2.5rem;
+            margin-bottom: 10px;
             text-transform: uppercase;
             letter-spacing: 2px;
-            text-shadow: 0 0 10px rgba(56, 189, 248, 0.4);
+            background: linear-gradient(45deg, var(--accent-color), var(--roblox-gold));
+            -webkit-background-clip: text;
+            -webkit-text-fill-color: transparent;
+            font-weight: 900;
         }
 
-        .input-group {
-            margin-bottom: 20px;
-        }
-
-        .input-group label {
-            display: block;
-            margin-bottom: 8px;
-            font-size: 14px;
+        .subtitle {
             color: var(--text-muted);
-        }
-
-        .input-group input {
-            width: 100%;
-            padding: 12px;
-            background: #0f172a;
-            border: 1px solid #475569;
-            border-radius: 8px;
-            color: #fff;
-            font-size: 16px;
-            outline: none;
-            text-align: center;
-            letter-spacing: 1px;
-        }
-
-        .input-group input:focus {
-            border-color: var(--accent-color);
-            box-shadow: 0 0 8px rgba(56, 189, 248, 0.3);
+            margin-bottom: 30px;
+            font-size: 0.95rem;
         }
 
         .btn {
             width: 100%;
             padding: 14px;
-            background: var(--accent-color);
-            border: none;
+            background: linear-gradient(135deg, #2f3542, #1e222b);
+            border: 1px solid var(--border-color);
             border-radius: 8px;
-            color: var(--bg-dark);
-            font-size: 16px;
+            color: var(--text-main);
+            font-size: 1.1rem;
             font-weight: bold;
             cursor: pointer;
-            transition: background 0.2s, transform 0.1s;
-            margin-bottom: 12px;
+            margin-bottom: 15px;
+            transition: all 0.2s ease;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            gap: 10px;
         }
 
         .btn:hover {
-            background: var(--accent-hover);
+            background: linear-gradient(135deg, #3f4758, #2a303d);
+            border-color: var(--text-muted);
+            transform: translateY(-2px);
         }
 
-        .btn:active {
-            transform: scale(0.98);
+        .btn-primary {
+            background: linear-gradient(135deg, var(--accent-color), #dd2233);
+            border: none;
         }
 
-        .btn-secondary {
-            background: #475569;
-            color: white;
+        .btn-primary:hover {
+            background: linear-gradient(135deg, #ff6b81, var(--accent-color));
+            box-shadow: 0 0 15px rgba(255, 71, 87, 0.4);
         }
 
-        .btn-secondary:hover {
-            background: #64748b;
+        .btn-success {
+            background: linear-gradient(135deg, var(--accent-success), #26af5f);
+            border: none;
         }
 
-        .divider {
-            text-align: center;
-            margin: 15px 0;
-            color: var(--text-muted);
-            position: relative;
+        .btn-success:hover {
+            background: linear-gradient(135deg, #52e18e, var(--accent-success));
+            box-shadow: 0 0 15px rgba(46, 213, 115, 0.4);
         }
 
-        .divider::before, .divider::after {
-            content: "";
-            position: absolute;
-            top: 50%;
-            width: 40%;
-            height: 1px;
-            background: #334155;
-        }
-
-        .divider::before { left: 0; }
-        .divider::after { right: 0; }
-
-        .status-message {
-            margin-top: 15px;
-            padding: 10px;
-            border-radius: 6px;
-            font-size: 14px;
-            text-align: center;
-            display: none;
-            background: rgba(255, 255, 255, 0.05);
-        }
-
-        #waiting-room {
-            display: none;
-        }
-
-        .player-list {
+        /* 코드 입력 세션 */
+        .code-container {
             margin: 20px 0;
-            background: rgba(0,0,0,0.2);
-            border-radius: 8px;
-            padding: 15px;
-            max-height: 150px;
-            overflow-y: auto;
-        }
-
-        .player-item {
-            display: flex;
-            justify-content: space-between;
-            padding: 8px 0;
-            border-bottom: 1px solid #334155;
-        }
-
-        .player-item:last-child { border-bottom: none; }
-        .player-status { font-weight: bold; }
-        .status-ready { color: var(--success-color); }
-
-        /* 3. 인게임 HUD 및 캔버스 레이아웃 */
-        #game-container {
-            display: none;
-            position: relative;
-            width: 100vw;
-            height: 100vh;
-        }
-
-        canvas {
-            background: #020617;
-            display: block;
-        }
-
-        #hud {
-            position: absolute;
-            top: 20px;
-            left: 20px;
-            pointer-events: none;
             display: flex;
             flex-direction: column;
             gap: 10px;
-            font-family: monospace;
-            z-index: 50;
         }
 
-        .hud-panel {
-            background: rgba(15, 23, 42, 0.85);
-            padding: 12px 20px;
-            border-radius: 8px;
-            border-left: 4px solid var(--accent-color);
-            box-shadow: 0 4px 15px rgba(0,0,0,0.3);
-            backdrop-filter: blur(4px);
-        }
-
-        .hud-title {
-            font-size: 12px;
-            color: var(--text-muted);
-            text-transform: uppercase;
-        }
-
-        .hud-value {
-            font-size: 20px;
-            font-weight: bold;
-            color: #fff;
-        }
-
-        .weapon-rpg { border-left-color: var(--gold); }
-        .weapon-rpg .hud-value { color: var(--gold); }
-        .weapon-nuke { border-left-color: var(--purple); animation: nuke-pulse 1s infinite alternate; }
-        .weapon-nuke .hud-value { color: var(--purple); text-shadow: 0 0 10px rgba(168, 85, 247, 0.6); }
-
-        @keyframes nuke-pulse {
-            from { border-left-color: var(--purple); }
-            to { border-left-color: var(--danger-color); }
-        }
-
-        .level-panel { border-left-color: var(--success-color); }
-        .level-panel .hud-value { color: var(--success-color); }
-
-        #crosshair-guide {
-            position: absolute;
-            top: 20px;
-            right: 20px;
-            background: rgba(15, 23, 42, 0.8);
-            padding: 10px 15px;
-            border-radius: 6px;
-            font-size: 13px;
-            color: var(--text-muted);
-            border: 1px solid #334155;
-            pointer-events: none;
-            z-index: 50;
-        }
-
-        #game-notifier {
-            position: absolute;
-            top: 20%;
-            left: 50%;
-            transform: translate(-50%, -50%);
-            background: rgba(0, 0, 0, 0.85);
-            color: #fff;
-            padding: 15px 40px;
-            border-radius: 30px;
-            font-size: 24px;
-            font-weight: bold;
-            border: 2px solid var(--gold);
-            box-shadow: 0 0 20px rgba(234, 179, 8, 0.3);
-            pointer-events: none;
-            opacity: 0;
-            transition: opacity 0.3s ease;
-            z-index: 100;
-            text-align: center;
-        }
-
-        #game-notifier.active { opacity: 1; }
-
-        /* 결과 창 */
-        #result-screen {
-            display: none;
-            position: absolute;
-            inset: 0;
-            background: rgba(15, 23, 42, 0.95);
-            z-index: 200;
-            flex-direction: column;
+        .digit-input-wrapper {
+            display: flex;
             justify-content: center;
+            gap: 12px;
+        }
+
+        .code-input {
+            width: 60px;
+            height: 60px;
+            background: rgba(0, 0, 0, 0.4);
+            border: 2px solid var(--border-color);
+            border-radius: 8px;
+            text-align: center;
+            font-size: 2rem;
+            font-weight: bold;
+            color: var(--roblox-gold);
+        }
+
+        .code-input:focus {
+            border-color: var(--accent-blue);
+            outline: none;
+            box-shadow: 0 0 10px rgba(30, 144, 255, 0.3);
+        }
+
+        .display-code-box {
+            font-size: 3rem;
+            font-weight: 900;
+            letter-spacing: 8px;
+            color: var(--roblox-gold);
+            background: rgba(0,0,0,0.3);
+            padding: 15px;
+            border-radius: 8px;
+            border: 1px dashed var(--border-color);
+            margin: 15px 0;
+        }
+
+        /* 아바타 커스텀 탭 */
+        .custom-grid {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 15px;
+            margin-bottom: 25px;
+            text-align: left;
+        }
+
+        .custom-item {
+            display: flex;
+            flex-direction: column;
+            gap: 5px;
+        }
+
+        .custom-item label {
+            font-size: 0.85rem;
+            color: var(--text-muted);
+        }
+
+        .custom-item input[type="color"] {
+            width: 100%;
+            height: 40px;
+            border: 1px solid var(--border-color);
+            border-radius: 6px;
+            background: none;
+            cursor: pointer;
+        }
+
+        .custom-item select {
+            width: 100%;
+            padding: 10px;
+            background: #1e222b;
+            border: 1px solid var(--border-color);
+            border-radius: 6px;
+            color: white;
+        }
+
+        /* 로비 인터페이스 */
+        .lobby-list {
+            width: 100%;
+            background: rgba(0,0,0,0.2);
+            border-radius: 6px;
+            padding: 15px;
+            margin: 15px 0;
+            text-align: left;
+        }
+
+        .lobby-player {
+            display: flex;
+            justify-content: space-between;
+            padding: 8px 0;
+            border-bottom: 1px solid rgba(255,255,255,0.05);
+        }
+
+        .lobby-player:last-child {
+            border-bottom: none;
+        }
+
+        .status-badge {
+            padding: 2px 8px;
+            border-radius: 4px;
+            font-size: 0.8rem;
+        }
+
+        .status-ready { background-color: var(--accent-success); color: black; font-weight: bold;}
+        .status-waiting { background-color: #f1c40f; color: black; font-weight: bold;}
+
+        /* 인게임 HUD 레이아웃 */
+        #hud {
+            position: absolute;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            pointer-events: none;
+            display: flex;
+            flex-direction: column;
+            justify-content: space-between;
+            padding: 20px;
+            box-sizing: border-box;
+            opacity: 0;
+            transition: opacity 0.5s ease;
+        }
+
+        #hud.active {
+            pointer-events: none;
+            opacity: 1;
+        }
+
+        .hud-top {
+            display: flex;
+            justify-content: space-between;
+            align-items: flex-start;
+            width: 100%;
+        }
+
+        .scoreboard {
+            background: rgba(10, 11, 16, 0.75);
+            border: 2px solid var(--border-color);
+            border-radius: 8px;
+            padding: 10px 30px;
+            display: flex;
+            align-items: center;
+            gap: 20px;
+            backdrop-filter: blur(5px);
+        }
+
+        .score-team {
+            display: flex;
+            flex-direction: column;
             align-items: center;
         }
 
-        .result-box {
-            text-align: center;
-            max-width: 500px;
-            padding: 40px;
-            border-radius: 16px;
-            border: 2px solid var(--success-color);
-            background: var(--panel-bg);
-            box-shadow: 0 0 40px rgba(34, 197, 94, 0.2);
+        .team-name {
+            font-size: 0.8rem;
+            text-transform: uppercase;
+            color: var(--text-muted);
         }
 
-        .result-title {
-            font-size: 42px;
-            color: var(--success-color);
-            margin-bottom: 20px;
-            text-transform: uppercase;
+        .team-score {
+            font-size: 2rem;
             font-weight: 900;
         }
 
-        /* 우측 하단 초미세 어드민 버튼 이스터에그 스타일 */
-        #secret-admin-trigger {
-            position: absolute;
-            bottom: 5px;
-            right: 5px;
-            font-size: 9px;
-            color: #020617; /* 완전히 화면 구석 배경색에 매립하여 완벽 은폐 */
-            cursor: pointer;
-            z-index: 9999;
-            opacity: 0.3;
-            transition: opacity 0.2s;
+        .score-divider {
+            font-size: 1.5rem;
+            color: var(--border-color);
         }
-        #secret-admin-trigger:hover {
+
+        .match-timer {
+            font-size: 1.2rem;
+            font-weight: bold;
+            color: var(--roblox-gold);
+            background: rgba(0,0,0,0.5);
+            padding: 4px 12px;
+            border-radius: 4px;
+            margin-top: 5px;
+            text-align: center;
+        }
+
+        .killfeed-box {
+            width: 300px;
+            display: flex;
+            flex-direction: column;
+            gap: 5px;
+        }
+
+        .killfeed-item {
+            background: rgba(0,0,0,0.6);
+            padding: 6px 12px;
+            border-radius: 4px;
+            font-size: 0.85rem;
+            border-left: 4px solid var(--accent-color);
+            animation: slideInRight 0.2s ease-out;
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+        }
+
+        @keyframes slideInRight {
+            from { transform: translateX(50px); opacity: 0; }
+            to { transform: translateX(0); opacity: 1; }
+        }
+
+        .hud-bottom {
+            display: flex;
+            justify-content: space-between;
+            align-items: flex-end;
+            width: 100%;
+        }
+
+        .player-status-card {
+            background: var(--panel-bg);
+            border: 2px solid var(--border-color);
+            padding: 15px;
+            border-radius: 10px;
+            width: 280px;
+            backdrop-filter: blur(5px);
+        }
+
+        .bar-container {
+            width: 100%;
+            height: 16px;
+            background: #2f3542;
+            border-radius: 8px;
+            overflow: hidden;
+            margin-top: 6px;
+            border: 1px solid rgba(0,0,0,0.5);
+        }
+
+        .hp-bar {
+            width: 100%;
+            height: 100%;
+            background: linear-gradient(90deg, #ff4757, #ff6b81);
+            transition: width 0.1s ease;
+        }
+
+        .stamina-bar {
+            width: 100%;
+            height: 100%;
+            background: linear-gradient(90deg, var(--accent-blue), #70a1ff);
+            transition: width 0.1s ease;
+        }
+
+        .weapon-info-card {
+            background: var(--panel-bg);
+            border: 2px solid var(--border-color);
+            padding: 15px;
+            border-radius: 10px;
+            text-align: right;
+            width: 220px;
+            backdrop-filter: blur(5px);
+        }
+
+        .ammo-text {
+            font-size: 2.2rem;
+            font-weight: 900;
+            line-height: 1;
+            color: white;
+        }
+
+        .ammo-max {
+            font-size: 1.2rem;
+            color: var(--text-muted);
+        }
+
+        .weapon-name-display {
+            font-size: 0.9rem;
+            color: var(--roblox-gold);
+            text-transform: uppercase;
+            font-weight: bold;
+            margin-top: 5px;
+        }
+
+        /* 데스 스크린 오버레이 */
+        #death-overlay {
+            position: absolute;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            background: rgba(255, 0, 0, 0.15);
+            display: flex;
+            flex-direction: column;
+            justify-content: center;
+            align-items: center;
+            z-index: 5;
+            opacity: 0;
+            pointer-events: none;
+            transition: opacity 0.4s ease;
+        }
+
+        #death-overlay.active {
             opacity: 1;
-            color: var(--danger-color);
+        }
+
+        .death-text {
+            font-size: 4rem;
+            font-weight: 900;
+            color: var(--accent-color);
+            text-shadow: 0 0 20px rgba(0,0,0,0.8);
+            letter-spacing: 4px;
+            transform: scale(0.8);
+            transition: transform 0.4s cubic-bezier(0.175, 0.885, 0.32, 1.275);
+        }
+
+        #death-overlay.active .death-text {
+            transform: scale(1);
+        }
+
+        /* 시스템 알림 컴포넌트 */
+        #notification-center {
+            position: absolute;
+            top: 90px;
+            left: 50%;
+            transform: translateX(-50%);
+            z-index: 100;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            gap: 10px;
+            pointer-events: none;
+        }
+
+        .toast-msg {
+            background: rgba(15, 18, 26, 0.9);
+            border: 1px solid var(--accent-blue);
+            color: white;
+            padding: 10px 24px;
+            border-radius: 30px;
+            font-size: 0.9rem;
+            box-shadow: 0 5px 15px rgba(0,0,0,0.4);
+            animation: fadeInUp 0.2s ease;
+        }
+
+        @keyframes fadeInUp {
+            from { transform: translateY(15px); opacity: 0; }
+            to { transform: translateY(0); opacity: 1; }
+        }
+
+        /* 전산 렌더링 캔버스 배치 */
+        #game-canvas {
+            display: block;
+            width: 100%;
+            height: 100%;
+            z-index: 1;
+        }
+
+        /* 통계 보기 패널 */
+        .stats-row {
+            display: flex;
+            justify-content: space-between;
+            padding: 8px 0;
+            border-bottom: 1px solid rgba(255,255,255,0.05);
+            font-size: 0.95rem;
+        }
+        
+        .hitmarker {
+            position: absolute;
+            top: 50%;
+            left: 50%;
+            transform: translate(-50%, -50%);
+            width: 20px;
+            height: 20px;
+            pointer-events: none;
+            opacity: 0;
+            transition: opacity 0.05s ease;
+            z-index: 4;
         }
     </style>
 </head>
 <body>
 
-    <!-- [MODULE 1: LOBBY UI] -->
-    <div id="lobby-container">
-        <div id="lobby-main">
-            <h1 class="lobby-title">Maze Breaker 2D</h1>
-            <div class="input-group">
-                <label for="nickname-input">플레이어 닉네임</label>
-                <input type="text" id="nickname-input" placeholder="닉네임을 입력하세요..." maxlength="10" value="플레이어1">
+    <!-- 인게임 히트마커 그래픽 정의 -->
+    <svg class="hitmarker" id="hitmarker-img" viewBox="0 0 24 24">
+        <path d="M2 2 L6 6 M22 2 L18 6 M2 22 L6 18 M22 22 L18 18" stroke="#ff4757" stroke-width="2.5" stroke-linecap="round"/>
+    </svg>
+
+    <div id="notification-center"></div>
+
+    <div id="ui-container">
+        <!-- 1. 메인 메뉴 화면 -->
+        <div id="screen-main" class="screen">
+            <div class="menu-panel">
+                <h1>RIVALS 2D</h1>
+                <p class="subtitle">Roblox Rivals 1v1 다이렉트 최적화 아레나 슈터</p>
+                
+                <div class="custom-grid">
+                    <div class="custom-item">
+                        <label>플레이어 닉네임</label>
+                        <input type="text" id="input-nickname" value="Robloxian" style="padding:10px; background:#1e222b; border:1px solid var(--border-color); color:white; border-radius:6px;">
+                    </div>
+                    <div class="custom-item">
+                        <label>대표 무기 선택</label>
+                        <select id="select-primary-weapon">
+                            <option value="RIFLE">Assault Rifle (균형형)</option>
+                            <option value="SHOTGUN">Shotgun (근접 폭발형)</option>
+                            <option value="SNIPER">Sniper Rifle (한방 저격)</option>
+                            <option value="PISTOL">Pistol (기동 연사)</option>
+                            <option value="RPG">RPG (범위 가공)</option>
+                        </select>
+                    </div>
+                    <div class="custom-item">
+                        <label>머리 색상 (Head)</label>
+                        <input type="color" id="col-head" value="#f1c40f">
+                    </div>
+                    <div class="custom-item">
+                        <label>몸통 색상 (Torso)</label>
+                        <input type="color" id="col-torso" value="#1e90ff">
+                    </div>
+                </div>
+
+                <button class="btn btn-primary" id="btn-create-match">방 만들기 (초대코드 생성)</button>
+                <button class="btn btn-success" id="btn-join-match">코드로 참여하기</button>
+                <button class="btn" id="btn-open-stats">전투 기록 / 스탯 보기</button>
             </div>
-            <button id="btn-create-mode" class="btn">방 만들기 (호스트)</button>
-            <div class="divider">또는</div>
-            <div class="input-group">
-                <label for="room-code-input">참여할 4자리 코드 입력</label>
-                <input type="text" id="room-code-input" placeholder="예: 7A9F" maxlength="4" style="text-transform: uppercase;">
-            </div>
-            <button id="btn-join-mode" class="btn btn-secondary">지정된 방 참여하기</button>
-            <div id="lobby-status" class="status-message"></div>
         </div>
 
-        <div id="waiting-room">
-            <h1 class="lobby-title">대기실</h1>
-            <div style="text-align:center; margin-bottom: 15px;">
-                <span style="color: var(--text-muted);">방 코드: </span>
-                <span id="display-room-code" style="font-size: 24px; font-weight: bold; color: var(--accent-color); letter-spacing: 2px;">----</span>
-            </div>
-            <div class="player-list" id="ui-player-list"></div>
-            <div id="host-controls" style="display: none;">
-                <button id="btn-start-game" class="btn" style="background: var(--success-color); color: #fff;">게임 시작하기</button>
-            </div>
-            <div id="client-controls" style="display: none; text-align: center; color: var(--gold); padding: 10px; font-style: italic;">
-                방장이 게임을 시작하기를 기다리는 중...
-            </div>
-            <button id="btn-leave-lobby" class="btn btn-secondary" style="margin-top: 10px;">나가기</button>
-        </div>
-    </div>
+        <!-- 2. 매치 생성 대기 화면 (Host) -->
+        <div id="screen-host" class="screen hidden">
+            <div class="menu-panel">
+                <h1>방 개설 완료</h1>
+                <p class="subtitle">상대방에게 아래 4자리 초대 코드를 공유하세요.</p>
+                
+                <div class="display-code-box" id="host-code-display">0000</div>
+                
+                <div class="custom-item" style="text-align: left; margin: 15px 0;">
+                    <label>교전 전장(맵) 선택</label>
+                    <select id="select-map" style="width:100%; padding:10px; background:#1e222b; border:1px solid var(--border-color); color:white; border-radius:6px; margin-top:5px;">
+                        <option value="CLASSIC">Classic Arena (중앙 광장 구조)</option>
+                        <option value="WAREHOUSE">Warehouse (밀폐식 격실 및 통로)</option>
+                        <option value="CARGO">Cargo Shipyard (컨테이너 엄폐전)</option>
+                        <option value="CROSSFIRE">Crossfire (개 활지 교차 사선)</option>
+                    </select>
+                </div>
 
-    <!-- [MODULE 2: INGAME HUD & CANVAS] -->
-    <div id="game-container">
+                <div class="lobby-list">
+                    <div class="lobby-player">
+                        <span id="host-self-name">나 (Host)</span>
+                        <span class="status-badge status-ready">준비완료</span>
+                    </div>
+                    <div class="lobby-player">
+                        <span id="host-peer-name">상대방 대기 중...</span>
+                        <span class="status-badge status-waiting" id="host-peer-status">WAITING</span>
+                    </div>
+                </div>
+
+                <button class="btn btn-primary" id="btn-start-game" disabled style="opacity: 0.5; cursor: not-allowed;">경기 시작</button>
+                <button class="btn" id="btn-back-from-host">취소하고 나가기</button>
+            </div>
+        </div>
+
+        <!-- 3. 매치 참여 코드 입력 화면 (Client) -->
+        <div id="screen-client" class="screen hidden">
+            <div class="menu-panel">
+                <h1>초대 코드 입력</h1>
+                <p class="subtitle">전달받은 4자리 숫자 코드를 차례로 입력하세요.</p>
+                
+                <div class="code-container">
+                    <div class="digit-input-wrapper">
+                        <input type="text" class="code-input" maxlength="1" id="code-1">
+                        <input type="text" class="code-input" maxlength="1" id="code-2">
+                        <input type="text" class="code-input" maxlength="1" id="code-3">
+                        <input type="text" class="code-input" maxlength="1" id="code-4">
+                    </div>
+                </div>
+
+                <button class="btn btn-success" id="btn-connect-peer">서버 다이렉트 연결</button>
+                <button class="btn" id="btn-back-from-client">뒤로 가기</button>
+            </div>
+        </div>
+
+        <!-- 4. 통계창 화면 -->
+        <div id="screen-stats" class="screen hidden">
+            <div class="menu-panel">
+                <h1>전투 전적 통계</h1>
+                <p class="subtitle">로컬 스토리지에 동기화된 내 누적 데이터입니다.</p>
+                
+                <div style="background:rgba(0,0,0,0.3); padding:20px; border-radius:8px; margin-bottom:20px;">
+                    <div class="stats-row"><span>총 매치 판수</span><span id="stat-matches">0</span></div>
+                    <div class="stats-row"><span>총 처치수 (Kills)</span><span id="stat-kills">0</span></div>
+                    <div class="stats-row"><span>총 사망수 (Deaths)</span><span id="stat-deaths">0</span></div>
+                    <div class="stats-row"><span>킬데스비 (K/D)</span><span id="stat-kd">0.00</span></div>
+                    <div class="stats-row"><span>발사한 탄환수</span><span id="stat-shots">0</span></div>
+                    <div class="stats-row"><span>적중한 탄환수</span><span id="stat-hits">0</span></div>
+                    <div class="stats-row"><span>종합 명중률</span><span id="stat-accuracy">0%</span></div>
+                </div>
+
+                <button class="btn btn-primary" id="btn-close-stats">메인 메뉴로 이동</button>
+            </div>
+        </div>
+
+        <!-- 5. 실제 인게임 HUD 인터페이스 -->
         <div id="hud">
-            <div class="hud-panel level-panel">
-                <div class="hud-title">현재 스테이지</div>
-                <div class="hud-value" id="hud-level">LV. 1 / 10</div>
+            <div class="hud-top">
+                <div class="scoreboard">
+                    <div class="score-team">
+                        <span class="team-name" id="hud-my-name" style="color:var(--accent-blue)">PLAYER 1</span>
+                        <span class="team-score" id="hud-my-score">0</span>
+                    </div>
+                    <div class="score-divider">:</div>
+                    <div class="score-team">
+                        <span class="team-name" id="hud-enemy-name" style="color:var(--accent-color)">PLAYER 2</span>
+                        <span class="team-score" id="hud-enemy-score">0</span>
+                    </div>
+                    <div style="margin-left: 10px;">
+                        <div class="match-timer" id="hud-round-num">ROUND 1</div>
+                    </div>
+                </div>
+                <div class="killfeed-box" id="killfeed"></div>
             </div>
-            <div class="hud-panel">
-                <div class="hud-title">경고 상태</div>
-                <div class="hud-value" id="hud-status" style="color: var(--danger-color);">괴물 추격 구역!</div>
-            </div>
-            <div class="hud-panel weapon-rpg" id="hud-weapon-panel">
-                <div class="hud-title">장착 무기</div>
-                <div class="hud-value" id="hud-weapon">맨손 (상자 파괴 가능)</div>
-            </div>
-            <div class="hud-panel">
-                <div class="hud-title">연결 정보</div>
-                <div class="hud-value" id="hud-peers" style="font-size:14px;">연결 중..</div>
+
+            <div class="hud-bottom">
+                <div class="player-status-card">
+                    <div style="display:flex; justify-content:space-between; font-size:0.85rem;">
+                        <span style="font-weight:bold;">체력 체계 (HP)</span>
+                        <span id="hud-hp-val">100 / 100</span>
+                    </div>
+                    <div class="bar-container">
+                        <div class="hp-bar" id="hud-hp-bar"></div>
+                    </div>
+                    
+                    <div style="display:flex; justify-content:space-between; font-size:0.85rem; margin-top:10px;">
+                        <span style="font-weight:bold; color:#70a1ff;">대시 스태미나</span>
+                        <span id="hud-stamina-val">100%</span>
+                    </div>
+                    <div class="bar-container" style="height:8px;">
+                        <div class="stamina-bar" id="hud-stamina-bar"></div>
+                    </div>
+                </div>
+
+                <div class="weapon-info-card">
+                    <div>
+                        <span class="ammo-text" id="hud-ammo-current">30</span>
+                        <span class="ammo-max" id="hud-ammo-max">/ 30</span>
+                    </div>
+                    <div class="weapon-name-display" id="hud-weapon-name">ASSAULT RIFLE</div>
+                    <div style="font-size:0.75rem; color:var(--text-muted); margin-top:4px;">[R] 장전 | [Space] 대시</div>
+                </div>
             </div>
         </div>
-        <div id="crosshair-guide">마우스 클릭: 무기 발사 | 우측 하단 구석 어드민 주의</div>
-        <div id="game-notifier">럭키 박스를 발견했습니다!</div>
-        <canvas id="gameCanvas"></canvas>
-        
-        <!-- 이스터에그 비밀 어드민 버튼 스위치 -->
-        <div id="secret-admin-trigger">어드민</div>
-    </div>
 
-    <!-- [MODULE 3: RESULT SCREEN] -->
-    <div id="result-screen">
-        <div class="result-box">
-            <div class="result-title">최종 탈출 성공!</div>
-            <div class="result-desc" id="result-text">축하합니다! 괴물들과 초대형 지옥 미로 단계를 전부 박살내고 완벽하게 탈출했습니다!</div>
-            <button class="btn" onclick="window.location.reload();">처음으로 돌아가기</button>
+        <!-- 데스 오버레이 -->
+        <div id="death-overlay">
+            <div class="death-text" id="death-message">ELIMINATED</div>
+            <p style="color:white; margin-top:10px; font-size:1.1rem;" id="death-subtext">다음 라운드가 곧 시작됩니다...</p>
         </div>
     </div>
 
-    <!-- [CORE GAME ENGINE SCRIPTS] -->
+    <!-- 게임 렌더링용 핵심 도화지 -->
+    <canvas id="game-canvas"></canvas>
+
     <script>
-        // --- 글로벌 환경 설정 및 시스템 공간 정의 ---
-        const PEER_PREFIX = "MZBRK2D-"; 
-        const CELL_SIZE = 48; 
+        // ==========================================================================
+        // 글로벌 상수 설정 및 오디오 합성기 엔진 초기화
+        // ==========================================================================
+        const PEER_PREFIX = "rbx-rivals-2d-";
         
-        const CELL_PATH = 0;
-        const CELL_WALL = 1;
-        const CELL_BOX = 2;
-        const CELL_EXIT = 3;
+        // 오디오 컨텍스트 인스턴스 (사용자 첫 상호작용 시 자동 재개)
+        let audioCtx = null;
+        function initAudio() {
+            if (!audioCtx) {
+                audioCtx = new (window.AudioContext || window.webkitAudioContext)();
+            }
+            if (audioCtx.state === 'suspended') {
+                audioCtx.resume();
+            }
+        }
 
-        const G = {
-            peer: null,
-            conn: null,
+        // Web Audio API 오디오 합성 유틸리티 함수들
+        const SoundEngine = {
+            playShoot(type) {
+                initAudio();
+                if(!audioCtx) return;
+                const osc = audioCtx.createOscillator();
+                const gain = audioCtx.createGain();
+                osc.connect(gain);
+                gain.connect(audioCtx.destination);
+
+                const now = audioCtx.currentTime;
+                if (type === 'SNIPER') {
+                    osc.type = 'sawtooth';
+                    osc.frequency.setValueAtTime(320, now);
+                    osc.frequency.exponentialRampToValueAtTime(40, now + 0.3);
+                    gain.gain.setValueAtTime(0.4, now);
+                    gain.gain.linearRampToValueAtTime(0.01, now + 0.3);
+                    osc.start(now); osc.stop(now + 0.3);
+                } else if (type === 'SHOTGUN') {
+                    osc.type = 'triangle';
+                    osc.frequency.setValueAtTime(180, now);
+                    osc.frequency.exponentialRampToValueAtTime(20, now + 0.25);
+                    gain.gain.setValueAtTime(0.6, now);
+                    gain.gain.linearRampToValueAtTime(0.01, now + 0.25);
+                    osc.start(now); osc.stop(now + 0.25);
+                } else if (type === 'RPG') {
+                    osc.type = 'square';
+                    osc.frequency.setValueAtTime(150, now);
+                    osc.frequency.linearRampToValueAtTime(30, now + 0.4);
+                    gain.gain.setValueAtTime(0.5, now);
+                    gain.gain.exponentialRampToValueAtTime(0.01, now + 0.4);
+                    osc.start(now); osc.stop(now + 0.4);
+                } else { // RIFLE, PISTOL
+                    osc.type = 'sawtooth';
+                    osc.frequency.setValueAtTime(450, now);
+                    osc.frequency.exponentialRampToValueAtTime(80, now + 0.12);
+                    gain.gain.setValueAtTime(0.2, now);
+                    gain.gain.linearRampToValueAtTime(0.01, now + 0.12);
+                    osc.start(now); osc.stop(now + 0.12);
+                }
+            },
+            playHitmarker() {
+                initAudio(); if(!audioCtx) return;
+                const osc = audioCtx.createOscillator();
+                const gain = audioCtx.createGain();
+                osc.connect(gain); gain.connect(audioCtx.destination);
+                const now = audioCtx.currentTime;
+                osc.type = 'sine';
+                osc.frequency.setValueAtTime(1800, now);
+                gain.gain.setValueAtTime(0.15, now);
+                gain.gain.linearRampToValueAtTime(0.001, now + 0.05);
+                osc.start(now); osc.stop(now + 0.05);
+            },
+            playReload() {
+                initAudio(); if(!audioCtx) return;
+                const osc = audioCtx.createOscillator();
+                const gain = audioCtx.createGain();
+                osc.connect(gain); gain.connect(audioCtx.destination);
+                const now = audioCtx.currentTime;
+                osc.type = 'triangle';
+                osc.frequency.setValueAtTime(600, now);
+                osc.frequency.setValueAtTime(300, now + 0.15);
+                gain.gain.setValueAtTime(0.1, now);
+                gain.gain.linearRampToValueAtTime(0.001, now + 0.4);
+                osc.start(now); osc.stop(now + 0.4);
+            },
+            playExplode() {
+                initAudio(); if(!audioCtx) return;
+                const osc = audioCtx.createOscillator();
+                const gain = audioCtx.createGain();
+                osc.connect(gain); gain.connect(audioCtx.destination);
+                const now = audioCtx.currentTime;
+                osc.type = 'triangle';
+                osc.frequency.setValueAtTime(90, now);
+                osc.frequency.exponentialRampToValueAtTime(10, now + 0.6);
+                gain.gain.setValueAtTime(0.8, now);
+                gain.gain.linearRampToValueAtTime(0.001, now + 0.6);
+                osc.start(now); osc.stop(now + 0.6);
+            },
+            playEliminated() {
+                initAudio(); if(!audioCtx) return;
+                const osc = audioCtx.createOscillator();
+                const gain = audioCtx.createGain();
+                osc.connect(gain); gain.connect(audioCtx.destination);
+                const now = audioCtx.currentTime;
+                osc.type = 'sawtooth';
+                osc.frequency.setValueAtTime(300, now);
+                osc.frequency.linearRampToValueAtTime(120, now + 0.5);
+                gain.gain.setValueAtTime(0.3, now);
+                gain.gain.linearRampToValueAtTime(0.001, now + 0.5);
+                osc.start(now); osc.stop(now + 0.5);
+            }
+        };
+
+        // ==========================================================================
+        // 무기 스펙트럼 테이블 및 전장 지형 구조 설정 데이터
+        // ==========================================================================
+        const WEAPONS = {
+            PISTOL: { name: "Pistol", damage: 18, fireRate: 200, ammoMax: 12, reloadTime: 1000, speed: 13, spread: 0.03, length: 18, size: 4 },
+            RIFLE: { name: "Assault Rifle", damage: 24, fireRate: 120, ammoMax: 30, reloadTime: 1600, speed: 15, spread: 0.06, length: 26, size: 5 },
+            SHOTGUN: { name: "Shotgun", damage: 12, fireRate: 750, ammoMax: 5, reloadTime: 2200, speed: 12, spread: 0.22, pellets: 6, length: 24, size: 4 },
+            SNIPER: { name: "Sniper Rifle", damage: 100, fireRate: 1300, ammoMax: 3, reloadTime: 2500, speed: 25, spread: 0.001, length: 35, size: 6 },
+            RPG: { name: "RPG-7", damage: 40, fireRate: 1500, ammoMax: 1, reloadTime: 3000, speed: 8, spread: 0.02, isRocket: true, length: 32, size: 8 }
+        };
+
+        const MAP_DATA = {
+            CLASSIC: {
+                width: 1400, height: 1400,
+                walls: [
+                    {x: 0, y: 0, w: 1400, h: 30}, {x: 0, y: 0, w: 30, h: 1400},
+                    {x: 0, y: 1370, w: 1400, h: 30}, {x: 1370, y: 0, w: 30, h: 1400},
+                    // 중앙 사각형 광장 장벽
+                    {x: 600, y: 600, w: 200, h: 200, type: 'solid'},
+                    // 외곽 대칭 엄폐 블록
+                    {x: 300, y: 300, w: 150, h: 50, type: 'solid'},
+                    {x: 950, y: 300, w: 150, h: 50, type: 'solid'},
+                    {x: 300, y: 1050, w: 150, h: 50, type: 'solid'},
+                    {x: 950, y: 1050, w: 150, h: 50, type: 'solid'},
+                    // 부시 수풀 지형 (안에 들어가면 반투명 은폐 효과)
+                    {x: 650, y: 250, w: 100, h: 100, type: 'bush'},
+                    {x: 650, y: 1050, w: 100, h: 100, type: 'bush'}
+                ],
+                spawnHost: { x: 150, y: 700 },
+                spawnClient: { x: 1250, y: 700 }
+            },
+            WAREHOUSE: {
+                width: 1600, height: 1200,
+                walls: [
+                    {x: 0, y: 0, w: 1600, h: 30}, {x: 0, y: 0, w: 30, h: 1200},
+                    {x: 0, y: 1170, w: 1600, h: 30}, {x: 1570, y: 0, w: 30, h: 1200},
+                    // 지그재그 격실 복도 구조 구현
+                    {x: 300, y: 300, w: 60, h: 600, type: 'solid'},
+                    {x: 1240, y: 300, w: 60, h: 600, type: 'solid'},
+                    {x: 550, y: 200, w: 500, h: 50, type: 'solid'},
+                    {x: 550, y: 950, w: 500, h: 50, type: 'solid'},
+                    {x: 750, y: 450, w: 100, h: 300, type: 'solid'}
+                ],
+                spawnHost: { x: 150, y: 600 },
+                spawnClient: { x: 1450, y: 600 }
+            },
+            CARGO: {
+                width: 1800, height: 1000,
+                walls: [
+                    {x: 0, y: 0, w: 1800, h: 30}, {x: 0, y: 0, w: 30, h: 1000},
+                    {x: 0, y: 970, w: 1800, h: 30}, {x: 1770, y: 0, w: 30, h: 1000},
+                    // 고유 컨테이너 배치 구조
+                    {x: 300, y: 200, w: 200, h: 100, type: 'container_red'},
+                    {x: 300, y: 700, w: 200, h: 100, type: 'container_blue'},
+                    {x: 750, y: 400, w: 300, h: 120, type: 'container_red'},
+                    {x: 1300, y: 200, w: 200, h: 100, type: 'container_blue'},
+                    {x: 1300, y: 700, w: 200, h: 100, type: 'container_red'},
+                    // 특수 구조: 파괴 가능한 상자 오브젝트 (체력 보유)
+                    {x: 600, y: 450, w: 60, h: 60, type: 'crate', hp: 80},
+                    {x: 1140, y: 450, w: 60, h: 60, type: 'crate', hp: 80}
+                ],
+                spawnHost: { x: 100, y: 500 },
+                spawnClient: { x: 1700, y: 500 }
+            },
+            CROSSFIRE: {
+                width: 1500, height: 1500,
+                walls: [
+                    {x: 0, y: 0, w: 1500, h: 30}, {x: 0, y: 0, w: 30, h: 1500},
+                    {x: 0, y: 1470, w: 1500, h: 30}, {x: 1470, y: 0, w: 30, h: 1500},
+                    // 대각선 교차 사선 확보를 위한 소형 코너 기둥 중심 장벽
+                    {x: 400, y: 400, w: 80, h: 80, type: 'solid'},
+                    {x: 1020, y: 400, w: 80, h: 80, type: 'solid'},
+                    {x: 400, y: 1020, w: 80, h: 80, type: 'solid'},
+                    {x: 1020, y: 1020, w: 80, h: 80, type: 'solid'},
+                    {x: 700, y: 700, w: 100, h: 100, type: 'solid'}
+                ],
+                spawnHost: { x: 150, y: 150 },
+                spawnClient: { x: 1350, y: 1350 }
+            }
+        };
+
+        // ==========================================================================
+        // 상태값 저장 객체 및 전역 변수 모음
+        // ==========================================================================
+        let gameState = {
+            mode: 'MENU', // MENU, HOST_WAIT, CLIENT_INPUT, IN_GAME
             isHost: false,
             roomCode: '',
-            nickname: '플레이어',
-            
-            currentLevel: 1,
-            maxLevel: 10,
-            gridSize: 61, // [요청 반영] 초반 레벨부터 아주아주 큰 초대형 스케일(61x61) 기본 세팅
-            
-            gameState: 'LOBBY', 
-            players: {}, 
-            maze: [],    
-            projectiles: [], // {x, y, vx, vy, owner, isNuke}
-            particles: [],   
-            monsters: [],    // 괴물 엔티티 목록 배열: {id, x, y, hp, maxHp, speed}
-            
-            canvas: null,
-            ctx: null,
-            camera: { x: 0, y: 0 },
-            keys: {},
-            mouseX: 0,
-            mouseY: 0,
-            localId: null,
-            monsterIdCounter: 0
+            nickname: 'Robloxian',
+            myColorHead: '#f1c40f',
+            myColorTorso: '#1e90ff',
+            selectedWeaponType: 'RIFLE',
+            currentMapKey: 'CLASSIC',
+            scores: { host: 0, client: 0 },
+            roundNumber: 1,
+            isRoundActive: false,
+            roundTimer: 0
         };
 
-        const UI = {
-            lobbyWrapper: document.getElementById('lobby-container'),
-            lobbyMain: document.getElementById('lobby-main'),
-            waitingRoom: document.getElementById('waiting-room'),
-            lobbyStatus: document.getElementById('lobby-status'),
-            displayRoomCode: document.getElementById('display-room-code'),
-            playerList: document.getElementById('ui-player-list'),
-            hostControls: document.getElementById('host-controls'),
-            clientControls: document.getElementById('client-controls'),
-            nicknameInput: document.getElementById('nickname-input'),
-            roomCodeInput: document.getElementById('room-code-input'),
-            gameContainer: document.getElementById('game-container'),
-            resultScreen: document.getElementById('result-screen'),
-            notifier: document.getElementById('game-notifier'),
-            weaponPanel: document.getElementById('hud-weapon-panel'),
-            weaponText: document.getElementById('hud-weapon'),
-            
-            showStatus(msg, isError = false) {
-                this.lobbyStatus.style.display = 'block';
-                this.lobbyStatus.style.color = isError ? 'var(--danger-color)' : 'var(--accent-color)';
-                this.lobbyStatus.innerText = msg;
-            },
-            triggerNotification(msg) {
-                this.notifier.innerText = msg;
-                this.notifier.classList.add('active');
-                setTimeout(() => this.notifier.classList.remove('active'), 3500);
-            },
-            updatePlayerListUI() {
-                this.playerList.innerHTML = '';
-                Object.keys(G.players).forEach(id => {
-                    const p = G.players[id];
-                    const div = document.createElement('div');
-                    div.className = 'player-item';
-                    div.innerHTML = `
-                        <span>${p.name} ${p.isHost ? '<span style="color:var(--accent-color)">[방장]</span>':''} ${id===G.localId?'(나)':''}</span>
-                        <span class="player-status status-ready">준비완료</span>
-                    `;
-                    this.playerList.appendChild(div);
-                });
+        // 전적 스탯 객체 (LocalStorage 연동)
+        let playerStats = {
+            matches: 0, kills: 0, deaths: 0, shots: 0, hits: 0
+        };
+        function loadStats() {
+            const saved = localStorage.getItem('rbx_rivals_2d_stats');
+            if (saved) {
+                try { playerStats = JSON.parse(saved); } catch(e) {}
             }
+        }
+        function saveStats() {
+            localStorage.setItem('rbx_rivals_2d_stats', JSON.stringify(playerStats));
+        }
+
+        // 게임 제어 인스턴스 정보들
+        const canvas = document.getElementById('game-canvas');
+        const ctx = canvas.getContext('2d');
+        let peer = null;
+        let conn = null;
+
+        // 인게임 물리 처리 객체 집합
+        let myPlayer = null;
+        let enemyPlayer = null;
+        let bullets = [];
+        let particles = [];
+        let items = []; // 체력 키트, 탄약 상자 아이템 리스트
+        let activeMap = MAP_DATA.CLASSIC;
+
+        // 카메라 오브젝트
+        let camera = { x: 0, y: 0, targetX: 0, targetY: 0, shake: 0 };
+
+        // 입력 상태 보관 버퍼
+        let keys = {};
+        let mouse = { x: 0, y: 0, worldX: 0, worldY: 0, isDown: false };
+
+        // ==========================================================================
+        // 네트워크 메시지 패킷 규격 모델
+        // ==========================================================================
+        const PACKET_TYPE = {
+            HANDSHAKE: 'HANDSHAKE',
+            GAME_START: 'GAME_START',
+            PLAYER_SYNC: 'PLAYER_SYNC',
+            SHOOT: 'SHOOT',
+            DAMAGE: 'DAMAGE',
+            ELIMINATED: 'ELIMINATED',
+            ROUND_RESET: 'ROUND_RESET',
+            MAP_SYNC: 'MAP_SYNC',
+            SPAWN_ITEM: 'SPAWN_ITEM',
+            ITEM_COLLECT: 'ITEM_COLLECT'
         };
 
-        function generateRoomCode() {
-            const chars = 'ABCDEFGHJKLMNPQRSTUVWXYZ23456789'; 
-            let code = '';
-            for (let i = 0; i < 4; i++) code += chars.charAt(Math.floor(Math.random() * chars.length));
-            return code;
-        }
+        // ==========================================================================
+        // 인게임 핵심 엔티티 구조화 프로토타입 클래스 정의
+        // ==========================================================================
+        class GamePlayer {
+            constructor(x, y, isMe, id, name, headCol, torsoCol, weaponType) {
+                this.x = x;
+                this.y = y;
+                this.vx = 0;
+                this.vy = 0;
+                this.radius = 24; // 피격 히트박스 반경
+                this.isMe = isMe;
+                this.id = id;
+                this.name = name;
+                this.headColor = headCol;
+                this.torsoColor = torsoCol;
+                this.weaponType = weaponType;
+                
+                // 인게임 변동 스탯 리스트
+                this.hp = 100;
+                this.maxHp = 100;
+                this.angle = 0;
+                
+                // 무기 연산 데이터
+                const spec = WEAPONS[weaponType];
+                this.ammo = spec.ammoMax;
+                this.maxAmmo = spec.ammoMax;
+                this.lastShotTime = 0;
+                this.isReloading = false;
+                this.reloadEndTime = 0;
 
-        // [요청 반영] 초기 스케일 자체를 초거대화(61)하여 고밀도 가변 가속
-        function calculateGridSize(level) {
-            return 61 + (level - 1) * 6; 
-        }
+                // 대시 기믹 전용 데이터
+                this.stamina = 100;
+                this.lastDashTime = 0;
+                this.isDashing = false;
+                this.dashDirX = 0;
+                this.dashDirY = 0;
+            }
 
-        // --- P2P 네트워크 트래픽 엔진 모듈 ---
-        function initNetwork(asHost, roomCode) {
-            G.isHost = asHost;
-            G.roomCode = roomCode.toUpperCase();
-            G.nickname = UI.nicknameInput.value.trim() || '무명전사';
-            G.localId = asHost ? PEER_PREFIX + G.roomCode + "-HOST" : PEER_PREFIX + G.roomCode + "-CLIENT-" + Math.floor(Math.random()*1000);
+            update(deltaTime) {
+                if (!gameState.isRoundActive) return;
 
-            UI.showStatus("P2P 중계 플랫폼 동기화 세션 진입 중...");
-
-            G.peer = new Peer(G.localId, { debug: 1 });
-
-            G.peer.on('open', (id) => {
-                UI.lobbyMain.style.display = 'none';
-                UI.waitingRoom.style.display = 'block';
-                UI.displayRoomCode.innerText = G.roomCode;
-
-                G.players[G.localId] = {
-                    x: CELL_SIZE * 1.5, y: CELL_SIZE * 1.5,
-                    vx: 0, vy: 0, angle: 0,
-                    name: G.nickname, hasRPG: false, hasNuke: false, isHost: asHost
-                };
-
-                if (asHost) {
-                    UI.hostControls.style.display = 'block';
-                    UI.updatePlayerListUI();
-                    G.gridSize = calculateGridSize(G.currentLevel);
-                    generateAdvancedMaze();
-                } else {
-                    UI.clientControls.style.display = 'block';
-                    connectToHost();
-                }
-            });
-
-            G.peer.on('connection', (connection) => {
-                G.conn = connection;
-                setupConnectionDataHandler();
-            });
-
-            G.peer.on('error', (err) => {
-                UI.showStatus("네트워크 에러 재접속 필요: " + err.type, true);
-                setTimeout(() => window.location.reload(), 3000);
-            });
-        }
-
-        function connectToHost() {
-            const hostId = PEER_PREFIX + G.roomCode + "-HOST";
-            const connection = G.peer.connect(hostId, { reliable: true });
-            G.conn = connection;
-            
-            connection.on('open', () => {
-                setupConnectionDataHandler();
-                sendData({ type: 'JOIN', name: G.nickname, id: G.localId });
-            });
-        }
-
-        function setupConnectionDataHandler() {
-            document.getElementById('hud-peers').innerText = "통신 회선 활성화";
-            
-            G.conn.on('data', (data) => {
-                switch(data.type) {
-                    case 'JOIN':
-                        G.players[data.id] = {
-                            x: CELL_SIZE * 1.5, y: CELL_SIZE * 1.5,
-                            vx: 0, vy: 0, angle: 0,
-                            name: data.name, hasRPG: false, hasNuke: false, isHost: false
-                        };
-                        UI.updatePlayerListUI();
-                        sendData({ type: 'LOBBY_SYNC', players: G.players });
-                        break;
-                        
-                    case 'LOBBY_SYNC':
-                        G.players = data.players;
-                        UI.updatePlayerListUI();
-                        break;
-                        
-                    case 'START_GAME':
-                        G.maze = data.maze;
-                        G.players = data.players;
-                        G.currentLevel = data.currentLevel;
-                        G.gridSize = data.gridSize;
-                        G.monsters = data.monsters; 
-                        G.gameState = 'PLAYING';
-                        document.getElementById('hud-level').innerText = `LV. ${G.currentLevel} / ${G.maxLevel}`;
-                        startGameLoop();
-                        break;
-                        
-                    case 'SYNC_INPUT':
-                        if (G.players[data.id]) {
-                            G.players[data.id].x = data.x;
-                            G.players[data.id].y = data.y;
-                            G.players[data.id].angle = data.angle;
-                            G.players[data.id].hasRPG = data.hasRPG;
-                            G.players[data.id].hasNuke = data.hasNuke;
+                if (this.isMe) {
+                    // 1. 대시 액션 제어 코드
+                    const now = Date.now();
+                    if (this.isDashing) {
+                        if (now - this.lastDashTime > 150) { // 대시 지속시간 0.15초
+                            this.isDashing = false;
+                        } else {
+                            this.vx = this.dashDirX * 14;
+                            this.vy = this.dashDirY * 14;
                         }
-                        break;
-                        
-                    case 'BOX_DESTROYED':
-                        G.maze[data.my][data.mx] = CELL_PATH;
-                        if(G.players[data.playerId]) G.players[data.playerId].hasRPG = true;
-                        createWallDestroyParticles(data.mx * CELL_SIZE + CELL_SIZE/2, data.my * CELL_SIZE + CELL_SIZE/2, '#eab308');
-                        UI.triggerNotification(`${G.players[data.playerId].name}님이 상자에서 RPG-7 획득!`);
-                        break;
-                        
-                    case 'FIRE_PROJECTILE':
-                        G.projectiles.push({
-                            x: data.x, y: data.y, vx: data.vx, vy: data.vy, owner: data.owner, isNuke: data.isNuke
-                        });
-                        break;
-                        
-                    case 'MAZE_BREAK':
-                        data.tiles.forEach(t => {
-                            if(G.maze[t.y] && (G.maze[t.y][t.x] === CELL_WALL || G.maze[t.y][t.x] === CELL_BOX)) {
-                                G.maze[t.y][t.x] = CELL_PATH;
-                                createWallDestroyParticles(t.x * CELL_SIZE + CELL_SIZE/2, t.y * CELL_SIZE + CELL_SIZE/2, '#475569');
-                            }
-                        });
-                        break;
+                    } else {
+                        // 일반 이동 제어 입력 연산
+                        let moveX = 0;
+                        let moveY = 0;
+                        if (keys['w'] || keys['W'] || keys['ArrowUp']) moveY -= 1;
+                        if (keys['s'] || keys['S'] || keys['ArrowDown']) moveY += 1;
+                        if (keys['a'] || keys['A'] || keys['ArrowLeft']) moveX -= 1;
+                        if (keys['d'] || keys['D'] || keys['ArrowRight']) moveX += 1;
 
-                    case 'MONSTER_SYNC_FROM_HOST':
-                        G.monsters = data.monsters;
-                        break;
+                        // 대각선 이동 속도 표준 정규화 적용
+                        if (moveX !== 0 && moveY !== 0) {
+                            moveX *= 0.7071;
+                            moveY *= 0.7071;
+                        }
 
-                    case 'MONSTER_HIT_EXPLOSION':
-                        createWallDestroyParticles(data.mx, data.my, '#a855f7');
-                        break;
+                        const baseSpeed = 4.5;
+                        this.vx = moveX * baseSpeed;
+                        this.vy = moveY * baseSpeed;
 
-                    case 'LEVEL_UP_SYNC':
-                        G.currentLevel = data.currentLevel;
-                        G.gridSize = data.gridSize;
-                        G.maze = data.maze;
-                        G.monsters = data.monsters;
-                        G.projectiles = [];
-                        Object.keys(G.players).forEach(id => {
-                            G.players[id].x = CELL_SIZE * 1.5;
-                            G.players[id].y = CELL_SIZE * 1.5;
-                        });
-                        document.getElementById('hud-level').innerText = `LV. ${G.currentLevel} / ${G.maxLevel}`;
-                        UI.triggerNotification(`STAGE ${G.currentLevel} 진입! 미로가 한층 더 거대화됩니다.`);
-                        break;
+                        // 스태미나 자동 회복
+                        if (this.stamina < 100) this.stamina = Math.min(100, this.stamina + 0.25);
 
-                    case 'GAME_CLEAR':
-                        G.gameState = 'END';
-                        UI.gameContainer.style.display = 'none';
-                        UI.resultScreen.style.display = 'flex';
-                        break;
-                }
-            });
-        }
-
-        function sendData(obj) {
-            if (G.conn && G.conn.open) G.conn.send(obj);
-        }
-
-        // --- 다이내믹 가변 복잡 미로 및 실시간 괴물 생성 엔진 ---
-        function generateAdvancedMaze() {
-            G.maze = [];
-            for (let y = 0; y < G.gridSize; y++) {
-                G.maze[y] = [];
-                for (let x = 0; x < G.gridSize; x++) G.maze[y][x] = CELL_WALL;
-            }
-
-            const stack = [];
-            G.maze[1][1] = CELL_PATH;
-            stack.push({ x: 1, y: 1 });
-
-            while (stack.length > 0) {
-                const current = stack[stack.length - 1];
-                const neighbors = [];
-                const dirs = [{x:0, y:-2}, {x:0, y:2}, {x:-2, y:0}, {x:2, y:0}];
-
-                dirs.forEach(d => {
-                    const nx = current.x + d.x;
-                    const ny = current.y + d.y;
-                    if (nx > 0 && nx < G.gridSize - 1 && ny > 0 && ny < G.gridSize - 1) {
-                        if (G.maze[ny][nx] === CELL_WALL) neighbors.push({ x: nx, y: ny, dir: d });
+                        // 대시 키 트리거 검사 (Space)
+                        if ((keys[' '] || keys['Spacebar']) && this.stamina >= 40 && (moveX !== 0 || moveY !== 0)) {
+                            this.stamina -= 40;
+                            this.isDashing = true;
+                            this.lastDashTime = now;
+                            this.dashDirX = moveX;
+                            this.dashDirY = moveY;
+                        }
                     }
-                });
 
-                if (neighbors.length > 0) {
-                    const next = neighbors[Math.floor(Math.random() * neighbors.length)];
-                    G.maze[current.y + next.dir.y / 2][current.x + next.dir.x / 2] = CELL_PATH;
-                    G.maze[next.y][next.x] = CELL_PATH;
-                    stack.push({ x: next.x, y: next.y });
+                    // 위치 변위 누적 적용 및 전장 벽면 정밀 충돌 연산 처리
+                    this.x += this.vx;
+                    this.checkWallCollision('x');
+                    this.y += this.vy;
+                    this.checkWallCollision('y');
+
+                    // 마우스 좌표 기반 아바타 회전 각도 실시간 연산
+                    this.angle = Math.atan2(mouse.worldY - this.y, mouse.worldX - this.x);
+
+                    // 장전 처리 흐름 상태 기계 검사
+                    if (this.isReloading && now > this.reloadEndTime) {
+                        this.ammo = this.maxAmmo;
+                        this.isReloading = false;
+                        updateHudData();
+                    }
+
+                    // 자동 연속 격발 사격 처리
+                    if (mouse.isDown && !this.isReloading) {
+                        this.fireWeapon();
+                    }
                 } else {
-                    stack.pop();
+                    // 원격 상대 플레이어 보간 연산 처리
+                    this.x += (this.targetX - this.x) * 0.35;
+                    this.y += (this.targetY - this.y) * 0.35;
+                    this.angle += (this.targetAngle - this.angle) * 0.35;
                 }
             }
 
-            G.maze[G.gridSize - 2][G.gridSize - 2] = CELL_EXIT;
+            checkWallCollision(axis) {
+                // 원형 캐릭터 보정 사각형 검사 충돌 기하학
+                for (let wall of activeMap.walls) {
+                    if (wall.type === 'bush') continue; // 수풀은 통과 가능
 
-            // 추가 연결 통로 개방 가속 (초대형 맵에 맞춰 루프 가중치 증폭)
-            for (let i = 0; i < G.gridSize * 5; i++) {
-                let rx = Math.floor(Math.random() * (G.gridSize - 2)) + 1;
-                let ry = Math.floor(Math.random() * (G.gridSize - 2)) + 1;
-                if(G.maze[ry][rx] === CELL_WALL && ry !== G.gridSize-2 && rx !== G.gridSize-2) G.maze[ry][rx] = CELL_PATH;
-            }
+                    // 가장 가까운 좌표 클램핑 추출
+                    let closestX = Math.max(wall.x, Math.min(this.x, wall.x + wall.w));
+                    let closestY = Math.max(wall.y, Math.min(this.y, wall.y + wall.h));
 
-            // 럭키박스 무작위 스폰 레이아웃 구성
-            let boxCount = 0;
-            let targetBoxMax = 30 + G.currentLevel * 15; // 초대형 맵 크기에 비례하여 럭키박스 개수 상향
-            while(boxCount < targetBoxMax) {
-                let bx = Math.floor(Math.random() * (G.gridSize - 2)) + 1;
-                let by = Math.floor(Math.random() * (G.gridSize - 2)) + 1;
-                if (G.maze[by][bx] === CELL_PATH && (bx > 3 || by > 3) && G.maze[by][bx] !== CELL_EXIT) {
-                    G.maze[by][bx] = CELL_BOX;
-                    boxCount++;
+                    let distanceX = this.x - closestX;
+                    let distanceY = this.y - closestY;
+                    let distanceSquared = (distanceX * distanceX) + (distanceY * distanceY);
+
+                    if (distanceSquared < this.radius * this.radius) {
+                        // 축 정합 충돌 반발 분리 적용
+                        if (axis === 'x') {
+                            if (this.vx > 0) this.x = closestX - this.radius;
+                            else if (this.vx < 0) this.x = closestX + this.radius;
+                        } else if (axis === 'y') {
+                            if (this.vy > 0) this.y = closestY - this.radius;
+                            else if (this.vy < 0) this.y = closestY + this.radius;
+                        }
+                    }
                 }
             }
 
-            // 괴물 엔티티 대량 스폰 제어
-            G.monsters = [];
-            let spawnMonsterCount = 8 + G.currentLevel * 3; // 넓어진 맵 크기에 맞게 괴물 배치 밀도 최적화
-            for(let m=0; m<spawnMonsterCount; m++) {
-                let mx = Math.floor(Math.random() * (G.gridSize - 4)) + 3;
-                let my = Math.floor(Math.random() * (G.gridSize - 4)) + 3;
-                if(G.maze[my][mx] === CELL_PATH) {
-                    G.monsters.push({
-                        id: ++G.monsterIdCounter,
-                        x: mx * CELL_SIZE + CELL_SIZE/2,
-                        y: my * CELL_SIZE + CELL_SIZE/2,
-                        hp: 25 + G.currentLevel * 15,    
-                        maxHp: 25 + G.currentLevel * 15,
-                        speed: 1.6 + (G.currentLevel * 0.12) 
+            fireWeapon() {
+                const now = Date.now();
+                const spec = WEAPONS[this.weaponType];
+                if (now - this.lastShotTime < spec.fireRate) return;
+                if (this.ammo <= 0) {
+                    this.startReload();
+                    return;
+                }
+
+                this.ammo--;
+                this.lastShotTime = now;
+                updateHudData();
+                
+                playerStats.shots++;
+                saveStats();
+
+                SoundEngine.playShoot(this.weaponType);
+
+                // 스크린 셰이크 리코일 반작용 효과 유발
+                camera.shake = Math.max(camera.shake, 6);
+
+                if (spec.pellets) {
+                    // 샷건 산탄 메커니즘 전개 구현
+                    let shotPellets = [];
+                    for (let i = 0; i < spec.pellets; i++) {
+                        const dev = (Math.random() - 0.5) * spec.spread;
+                        const finalAngle = this.angle + dev;
+                        const bId = Math.random().toString(36).substr(2, 5);
+                        const b = new Bullet(this.x, this.y, finalAngle, spec.speed, spec.damage, this.id, bId, false);
+                        bullets.push(b);
+                        shotPellets.push({ id: bId, angle: finalAngle });
+                    }
+                    sendNetworkPacket({
+                        type: PACKET_TYPE.SHOOT,
+                        weapon: this.weaponType,
+                        pellets: shotPellets
+                    });
+                } else {
+                    // 일반 단발 혹은 로켓 투사체 사격 연산
+                    const dev = (Math.random() - 0.5) * spec.spread;
+                    const finalAngle = this.angle + dev;
+                    const bId = Math.random().toString(36).substr(2, 5);
+                    
+                    const b = new Bullet(this.x, this.y, finalAngle, spec.speed, spec.damage, this.id, bId, spec.isRocket || false);
+                    bullets.push(b);
+
+                    sendNetworkPacket({
+                        type: PACKET_TYPE.SHOOT,
+                        weapon: this.weaponType,
+                        bulletId: bId,
+                        angle: finalAngle
                     });
                 }
+
+                // 격발 탄피 파티클 연산 추가
+                for(let i=0; i<2; i++){
+                    particles.push(new GameParticle(
+                        this.x - Math.cos(this.angle)*10, this.y - Math.sin(this.angle)*10,
+                        -Math.cos(this.angle)*2 + (Math.random()-0.5)*2, -Math.sin(this.angle)*2 + (Math.random()-0.5)*2,
+                        '#f1c40f', 3, 25 + Math.random()*20
+                    ));
+                }
+            }
+
+            startReload() {
+                if (this.isReloading || this.ammo === this.maxAmmo) return;
+                this.isReloading = true;
+                const spec = WEAPONS[this.weaponType];
+                this.reloadEndTime = Date.now() + spec.reloadTime;
+                SoundEngine.playReload();
+                showToastNotification("Reloading...");
+            }
+
+            draw() {
+                ctx.save();
+                ctx.translate(this.x, this.y);
+
+                // 부시 속에 위치 시 투명도 레이어 인코딩 기법 처리
+                let isInBush = false;
+                for(let w of activeMap.walls) {
+                    if(w.type === 'bush' && this.x >= w.x && this.x <= w.x+w.w && this.y >= w.y && this.y <= w.y+w.h) {
+                        isInBush = true; break;
+                    }
+                }
+                if(isInBush) ctx.globalAlpha = 0.4;
+
+                // 대시 상태 잔상 왜곡 이펙트 표현
+                if (this.isDashing) {
+                    ctx.fillStyle = this.torsoColor;
+                    ctx.fillRect(-this.radius, -this.radius, this.radius*2, this.radius*2);
+                }
+
+                ctx.rotate(this.angle);
+
+                // 1. Roblox 스타일 사각형 양손 무기 그리기 파트
+                const spec = WEAPONS[this.weaponType];
+                ctx.fillStyle = '#2f3542';
+                ctx.fillRect(10, -3, spec.length, spec.size); // 총기 바디
+                ctx.fillStyle = '#747d8c';
+                ctx.fillRect(10 + spec.length - 6, -2, 6, spec.size - 2); // 총구 총열 포인터
+
+                // 2. Roblox 블록형 몸통 (Torso)
+                ctx.fillStyle = this.torsoColor;
+                ctx.strokeStyle = '#111111';
+                ctx.lineWidth = 3;
+                ctx.beginPath();
+                ctx.rect(-16, -20, 32, 40);
+                ctx.fill();
+                ctx.stroke();
+
+                // 3. Roblox 블록형 머리 (Head) 노란색 베이스 기본 디폴트
+                ctx.fillStyle = this.headColor;
+                ctx.beginPath();
+                ctx.rect(-10, -10, 20, 20);
+                ctx.fill();
+                ctx.stroke();
+
+                // 4. 로블록스 클래식 표정 (얼굴 방향 눈 표시)
+                ctx.fillStyle = '#111111';
+                ctx.fillRect(6, -6, 2, 3);
+                ctx.fillRect(6, 3, 2, 3);
+
+                ctx.restore();
+
+                // 플레이어 닉네임 라벨 텍스트 레이아웃 그리기
+                ctx.save();
+                ctx.font = "bold 14px Segoe UI";
+                ctx.fillStyle = this.isMe ? "#70a1ff" : "#ff6b81";
+                ctx.textAlign = "center";
+                ctx.shadowColor = "black";
+                ctx.shadowBlur = 4;
+                ctx.fillText(this.name, this.x, this.y - this.radius - 12);
+
+                // 장전 중 프로그레스 바 표시 구조
+                if(this.isReloading) {
+                    const total = WEAPONS[this.weaponType].reloadTime;
+                    const remain = this.reloadEndTime - Date.now();
+                    const pct = Math.max(0, Math.min(1, 1 - (remain / total)));
+                    ctx.fillStyle = 'rgba(0,0,0,0.5)';
+                    ctx.fillRect(this.x - 20, this.y - this.radius - 6, 40, 5);
+                    ctx.fillStyle = varColor('--roblox-gold');
+                    ctx.fillRect(this.x - 20, this.y - this.radius - 6, 40 * pct, 5);
+                }
+                ctx.restore();
             }
         }
 
-        // --- GAME REALTIME ENGINE CONTROLLER ---
-        function startGameLoop() {
-            UI.lobbyWrapper.style.display = 'none';
-            UI.gameContainer.style.display = 'block';
+        class Bullet {
+            constructor(x, y, angle, speed, damage, ownerId, id, isRocket = false) {
+                this.x = x;
+                this.y = y;
+                this.vx = Math.cos(angle) * speed;
+                this.vy = Math.sin(angle) * speed;
+                this.damage = damage;
+                this.ownerId = ownerId;
+                this.id = id;
+                this.isRocket = isRocket;
+                this.life = 180; // 프레임 라이프사이클
+                this.radius = isRocket ? 7 : 3.5;
+            }
+
+            update() {
+                this.x += this.vx;
+                this.y += this.vy;
+                this.life--;
+
+                // 로켓 이펙트 연기 파티클 방출 연산
+                if (this.isRocket && Math.random() > 0.4) {
+                    particles.push(new GameParticle(this.x, this.y, -this.vx*0.2, -this.vy*0.2, '#747d8c', 5, 20));
+                }
+
+                // 맵 구조 장벽 충돌 파괴 제거 연산
+                for (let wall of activeMap.walls) {
+                    if (wall.type === 'bush') continue;
+                    if (this.x >= wall.x && this.x <= wall.x + wall.w &&
+                        this.y >= wall.y && this.y <= wall.y + wall.h) {
+                        
+                        // 파괴형 상자 엄폐물 처리 로직
+                        if (wall.type === 'crate' && gameState.isHost) {
+                            wall.hp -= this.damage;
+                            sendNetworkPacket({ type: PACKET_TYPE.MAP_SYNC, walls: activeMap.walls });
+                            if(wall.hp <= 0) SoundEngine.playExplode();
+                        }
+
+                        if (this.isRocket) this.explode();
+                        return false; // 총알 소멸 지표 리턴
+                    }
+                }
+
+                // 적군 피격 판정 상호작용 검사 (Host/Client 로컬 독립 검증 처리 후 싱크 데이터 전송)
+                if (myPlayer && this.ownerId !== myPlayer.id && !myPlayer.isDashing) {
+                    let dist = Math.hypot(this.x - myPlayer.x, this.y - myPlayer.y);
+                    if (dist < myPlayer.radius + this.radius) {
+                        // 피격 처리 단독 집행
+                        if (this.isRocket) {
+                            this.explode();
+                        } else {
+                            handleDamageInflicted(this.damage, false);
+                        }
+                        return false;
+                    }
+                }
+
+                return this.life > 0;
+            }
+
+            explode() {
+                SoundEngine.playExplode();
+                camera.shake = 15;
+                // 폭발 파티클 확산 연산
+                for (let i = 0; i < 25; i++) {
+                    const ang = Math.random() * Math.PI * 2;
+                    const spd = Math.random() * 5 + 2;
+                    particles.push(new GameParticle(this.x, this.y, Math.cos(ang)*spd, Math.sin(ang)*spd, '#ff4757', 6, 40));
+                }
+                
+                // 폭발 스플래시 스코프 내 대미지 가중 계산 스펙트럼
+                if (myPlayer) {
+                    let dist = Math.hypot(this.x - myPlayer.x, this.y - myPlayer.y);
+                    if (dist < 120) { // 120px 반경 범위 적용
+                        let falloff = (120 - dist) / 120;
+                        let finalDmg = Math.floor(this.damage * falloff * 1.5);
+                        handleDamageInflicted(finalDmg, true);
+                    }
+                }
+            }
+
+            draw() {
+                ctx.save();
+                if (this.isRocket) {
+                    ctx.fillStyle = '#ff6b81';
+                    ctx.strokeStyle = '#ff4757';
+                    ctx.lineWidth = 1;
+                    ctx.beginPath();
+                    ctx.arc(this.x, this.y, this.radius, 0, Math.PI*2);
+                    ctx.fill();
+                    ctx.stroke();
+                } else {
+                    ctx.fillStyle = '#f1c40f';
+                    ctx.beginPath();
+                    ctx.arc(this.x, this.y, this.radius, 0, Math.PI*2);
+                    ctx.fill();
+                }
+                ctx.restore();
+            }
+        }
+
+        class GameParticle {
+            constructor(x, y, vx, vy, color, size, life) {
+                this.x = x; this.y = y; this.vx = vx; this.vy = vy;
+                this.color = color; this.size = size; this.maxLife = life; this.life = life;
+            }
+            update() {
+                this.x += this.vx; this.y += this.vy; this.life--; return this.life > 0;
+            }
+            draw() {
+                ctx.save();
+                ctx.globalAlpha = this.life / this.maxLife;
+                ctx.fillStyle = this.color;
+                ctx.fillRect(this.x - this.size/2, this.y - this.size/2, this.size, this.size);
+                ctx.restore();
+            }
+        }
+
+        class FieldItem {
+            constructor(x, y, type, id) {
+                this.x = x; this.y = y; this.type = type; this.id = id; this.radius = 16; this.pulse = 0;
+            }
+            update() {
+                this.pulse += 0.08;
+                if (myPlayer && gameState.isRoundActive) {
+                    let dist = Math.hypot(this.x - myPlayer.x, this.y - myPlayer.y);
+                    if (dist < myPlayer.radius + this.radius) {
+                        // 아이템 습득 판정 이펙트 발동
+                        if (this.type === 'HEALTH') {
+                            myPlayer.hp = Math.min(myPlayer.maxHp, myPlayer.hp + 40);
+                            showToastNotification("+40 Health Restored!");
+                        } else if (this.type === 'AMMO') {
+                            myPlayer.ammo = myPlayer.maxAmmo;
+                            showToastNotification("Ammo Max Refilled!");
+                        }
+                        SoundEngine.playHitmarker();
+                        updateHudData();
+                        
+                        sendNetworkPacket({ type: PACKET_TYPE.ITEM_COLLECT, id: this.id });
+                        return false; 
+                    }
+                }
+                return true;
+            }
+            draw() {
+                ctx.save();
+                const sizeBonus = Math.sin(this.pulse) * 3;
+                ctx.shadowColor = this.type === 'HEALTH' ? '#2ed573' : '#1e90ff';
+                ctx.shadowBlur = 10;
+                
+                ctx.fillStyle = this.type === 'HEALTH' ? '#2ed573' : '#1e90ff';
+                ctx.beginPath();
+                ctx.rect(this.x - 12 - sizeBonus/2, this.y - 12 - sizeBonus/2, 24 + sizeBonus, 24 + sizeBonus);
+                ctx.fill();
+                
+                ctx.fillStyle = 'white';
+                ctx.font = 'bold 16px sans-serif';
+                ctx.textAlign = 'center';
+                ctx.textBaseline = 'middle';
+                ctx.fillText(this.type === 'HEALTH' ? '+' : 'A', this.x, this.y);
+                ctx.restore();
+            }
+        }
+
+        // CSS 헬퍼 컬러 변환용 유틸리티
+        function varColor(variable) {
+            if(variable === '--roblox-gold') return '#f1c40f';
+            return '#ffffff';
+        }
+
+        // ==========================================================================
+        // 대미지 가해 및 라운드 마감, 전적 갱신 관련 핵심 컨트롤러
+        // ==========================================================================
+        function handleDamageInflicted(amount, isExplosion) {
+            if (!gameState.isRoundActive || myPlayer.hp <= 0) return;
+
+            myPlayer.hp = Math.max(0, myPlayer.hp - amount);
+            updateHudData();
+
+            // 화면 연출 효과 촉발
+            camera.shake = 12;
+            for (let i = 0; i < 8; i++) {
+                particles.push(new GameParticle(myPlayer.x, myPlayer.y, (Math.random()-0.5)*6, (Math.random()-0.5)*6, '#ff4757', 4, 30));
+            }
+
+            // 피해 데이터 패킷 상대방 서버 유저에게 전송
+            sendNetworkPacket({
+                type: PACKET_TYPE.DAMAGE,
+                attackerId: enemyPlayer.id,
+                damage: amount,
+                isExplosion: isExplosion
+            });
+
+            // 사망조건 성립 체크
+            if (myPlayer.hp <= 0) {
+                executePlayerEliminated();
+            }
+        }
+
+        function executePlayerEliminated() {
+            gameState.isRoundActive = false;
+            SoundEngine.playEliminated();
             
-            G.canvas = document.getElementById('gameCanvas');
-            G.ctx = G.canvas.getContext('2d');
+            // 데스 카운트 전적 축적 저장
+            playerStats.deaths++;
+            saveStats();
+
+            document.getElementById('death-message').innerText = "ELIMINATED";
+            document.getElementById('death-overlay').classList.add('active');
+
+            if (gameState.isHost) gameState.scores.client++;
+            else gameState.scores.host++;
+
+            pushKillfeedLog(enemyPlayer.name, myPlayer.name, enemyPlayer.weaponType);
+
+            sendNetworkPacket({
+                type: PACKET_TYPE.ELIMINATED,
+                killerId: enemyPlayer.id
+            });
+
+            setTimeout(checkMatchSetWinner, 3000);
+        }
+
+        function receiveEnemyEliminatedPacket() {
+            gameState.isRoundActive = false;
             
+            // 킬 카운트 및 명중 전적 축적
+            playerStats.kills++;
+            playerStats.hits++;
+            saveStats();
+
+            document.getElementById('death-message').innerText = "ROUND VICTORY";
+            document.getElementById('death-overlay').classList.add('active');
+
+            if (gameState.isHost) gameState.scores.host++;
+            else gameState.scores.client++;
+
+            pushKillfeedLog(myPlayer.name, enemyPlayer.name, myPlayer.weaponType);
+            setTimeout(checkMatchSetWinner, 3000);
+        }
+
+        function checkMatchSetWinner() {
+            document.getElementById('death-overlay').classList.remove('active');
+            updateHudData();
+
+            // 5판 3선승제 기준 매치 최종 엔드게임 선언 처리
+            if (gameState.scores.host >= 3 || gameState.scores.client >= 3) {
+                const hostWon = gameState.scores.host >= 3;
+                const iWon = (gameState.isHost && hostWon) || (!gameState.isHost && !hostWon);
+                
+                playerStats.matches++;
+                saveStats();
+
+                alert(iWon ? "🎉 축하합니다! 최종 경기에서 승리하여 챔피언이 되었습니다." : "💀 패배했습니다. 다음 기회에 도전하세요!");
+                exitGameToMainMenu();
+            } else {
+                // 다음 라운드 리셋 루틴 가동
+                gameState.roundNumber++;
+                initializeRoundSequence();
+            }
+        }
+
+        function initializeRoundSequence() {
+            // 맵 스펙 기반 리스폰 배정 좌표 정합성 정리
+            const spawnPos = gameState.isHost ? activeMap.spawnHost : activeMap.spawnClient;
+            const enemySpawnPos = gameState.isHost ? activeMap.spawnClient : activeMap.spawnHost;
+
+            myPlayer.x = spawnPos.x;
+            myPlayer.y = spawnPos.y;
+            myPlayer.hp = 100;
+            myPlayer.ammo = myPlayer.maxAmmo;
+            myPlayer.isReloading = false;
+            myPlayer.isDashing = false;
+
+            enemyPlayer.x = enemySpawnPos.x;
+            enemyPlayer.y = enemySpawnPos.y;
+            enemyPlayer.hp = 100;
+
+            bullets = [];
+            particles = [];
+            if(gameState.isHost) items = [];
+
+            updateHudData();
+            gameState.isRoundActive = true;
+            showToastNotification(`Round ${gameState.roundNumber} - FIGHT!`);
+        }
+
+        // ==========================================================================
+        // PeerJS P2P 다이렉트 패킷 처리 및 매칭 라이프사이클 엔진
+        // ==========================================================================
+        function createHostMatchRoom() {
+            gameState.nickname = document.getElementById('input-nickname').value.trim() || "Robloxian";
+            gameState.selectedWeaponType = document.getElementById('select-primary-weapon').value;
+            gameState.myColorHead = document.getElementById('col-head').value;
+            gameState.myColorTorso = document.getElementById('col-torso').value;
+            gameState.currentMapKey = document.getElementById('select-map').value;
+            activeMap = MAP_DATA[gameState.currentMapKey];
+
+            // 4자리 고유 난수 기반 방 코드 포맷 정의
+            const rawCode = Math.floor(1000 + Math.random() * 9000).toString();
+            gameState.roomCode = rawCode;
+            gameState.isHost = true;
+
+            const fullPeerId = PEER_PREFIX + rawCode;
+            
+            showToastNotification("PeerJS 네트워킹 채널 개설 중...");
+            peer = new Peer(fullPeerId, {
+                debug: 1
+            });
+
+            peer.on('open', (id) => {
+                switchScreen('screen-host');
+                document.getElementById('host-code-display').innerText = rawCode;
+                document.getElementById('host-self-name').innerText = `${gameState.nickname} (나)`;
+            });
+
+            peer.on('connection', (connection) => {
+                if (conn) { 
+                    connection.close(); // 이미 차있는 경우 차단
+                    return; 
+                }
+                conn = connection;
+                setupPeerConnectionEvents();
+            });
+
+            peer.on('error', (err) => {
+                console.error(err);
+                if(err.type === 'unavailable-id') {
+                    showToastNotification("코드 생성 중복 오류, 재시도합니다.");
+                    createHostMatchRoom(); // 충돌 시 재귀 재생성
+                } else {
+                    alert("네트워크 통신망 생성 에러가 발견되었습니다: " + err.message);
+                }
+            });
+        }
+
+        function joinClientMatchRoom() {
+            const c1 = document.getElementById('code-1').value;
+            const c2 = document.getElementById('code-2').value;
+            const c3 = document.getElementById('code-3').value;
+            const c4 = document.getElementById('code-4').value;
+            const finalCode = c1 + c2 + c3 + c4;
+
+            if (finalCode.length !== 4) {
+                alert("정밀한 매칭을 위해 4자리 코드를 빠짐없이 전부 입력하세요.");
+                return;
+            }
+
+            gameState.nickname = document.getElementById('input-nickname').value.trim() || "Robloxian";
+            gameState.selectedWeaponType = document.getElementById('select-primary-weapon').value;
+            gameState.myColorHead = document.getElementById('col-head').value;
+            gameState.myColorTorso = document.getElementById('col-torso').value;
+            gameState.isHost = false;
+            gameState.roomCode = finalCode;
+
+            showToastNotification("원격지 P2P 커넥션 연동 프로세스 진입...");
+            peer = new Peer(null, { debug: 1 });
+
+            peer.on('open', (id) => {
+                const targetPeerId = PEER_PREFIX + finalCode;
+                conn = peer.connect(targetPeerId, { reliable: true });
+                setupPeerConnectionEvents();
+            });
+
+            peer.on('error', (err) => {
+                alert("연결망 풀 오류 코드가 송출되었습니다: " + err.message);
+            });
+        }
+
+        function setupPeerConnectionEvents() {
+            conn.on('open', () => {
+                showToastNotification("상대방 노드 다이렉트 터널링 동기화 완성!");
+                
+                // 1. 커스텀 데이터 아바타 스펙 바인딩 패킷 핸드셰이크
+                sendNetworkPacket({
+                    type: PACKET_TYPE.HANDSHAKE,
+                    nickname: gameState.nickname,
+                    headColor: gameState.myColorHead,
+                    torsoColor: gameState.myColorTorso,
+                    weaponType: gameState.selectedWeaponType,
+                    mapKey: gameState.currentMapKey
+                });
+            });
+
+            conn.on('data', (data) => {
+                handleIncomingNetworkPacket(data);
+            });
+
+            conn.on('close', () => {
+                alert("상대방과의 통신망이 유실되었습니다. 메인화면으로 복귀합니다.");
+                exitGameToMainMenu();
+            });
+        }
+
+        function sendNetworkPacket(obj) {
+            if (conn && conn.open) {
+                conn.send(obj);
+            }
+        }
+
+        function handleIncomingNetworkPacket(data) {
+            switch (data.type) {
+                case PACKET_TYPE.HANDSHAKE:
+                    // 피어 상태창 업데이트 동기화
+                    if (gameState.isHost) {
+                        document.getElementById('host-peer-name').innerText = data.nickname;
+                        document.getElementById('host-peer-status').innerText = "READY";
+                        document.getElementById('host-peer-status').className = "status-badge status-ready";
+                        
+                        // 게임 시작 권한 활성화
+                        const startBtn = document.getElementById('btn-start-game');
+                        startBtn.disabled = false;
+                        startBtn.style.opacity = "1";
+                        startBtn.style.cursor = "pointer";
+
+                        // 클라이언트 객체 셋업 준비물 생성
+                        enemyPlayer = new GamePlayer(0,0, false, 'client-id', data.nickname, data.headColor, data.torsoColor, data.weaponType);
+                    } else {
+                        // 클라이언트는 호스트가 결정한 맵 동기화 반영 실행
+                        gameState.currentMapKey = data.mapKey;
+                        activeMap = MAP_DATA[data.mapKey];
+                        enemyPlayer = new GamePlayer(0,0, false, 'host-id', data.nickname, data.headColor, data.torsoColor, data.weaponType);
+                    }
+                    break;
+
+                case PACKET_TYPE.GAME_START:
+                    // 클라이언트 단에서 수신되어 실제 인게임 뷰포트 스위칭
+                    if (!gameState.isHost) {
+                        const mySpawn = activeMap.spawnClient;
+                        myPlayer = new GamePlayer(mySpawn.x, mySpawn.y, true, 'client-id', gameState.nickname, gameState.myColorHead, gameState.myColorTorso, gameState.selectedWeaponType);
+                        
+                        const enemySpawn = activeMap.spawnHost;
+                        enemyPlayer.x = enemySpawn.x;
+                        enemyPlayer.y = enemySpawn.y;
+
+                        startActualInGameSession();
+                    }
+                    break;
+
+                case PACKET_TYPE.PLAYER_SYNC:
+                    if (enemyPlayer) {
+                        enemyPlayer.targetX = data.x;
+                        enemyPlayer.targetY = data.y;
+                        enemyPlayer.targetAngle = data.angle;
+                        enemyPlayer.isDashing = data.isDashing;
+                    }
+                    break;
+
+                case PACKET_TYPE.SHOOT:
+                    if (enemyPlayer) {
+                        SoundEngine.playShoot(data.weapon);
+                        if (data.pellets) {
+                            // 산탄 사격 동기화 동적 복원 구현
+                            data.pellets.forEach(p => {
+                                bullets.push(new Bullet(enemyPlayer.x, enemyPlayer.y, p.angle, WEAPONS[data.weapon].speed, WEAPONS[data.weapon].damage, enemyPlayer.id, p.id, false));
+                            });
+                        } else {
+                            bullets.push(new Bullet(enemyPlayer.x, enemyPlayer.y, data.angle, WEAPONS[data.weapon].speed, WEAPONS[data.weapon].damage, enemyPlayer.id, data.bulletId, WEAPONS[data.weapon].isRocket || false));
+                        }
+                    }
+                    break;
+
+                case PACKET_TYPE.DAMAGE:
+                    // 상대방이 나에게 맞았을때 히트마커 알림 연출 처리
+                    SoundEngine.playHitmarker();
+                    triggerHitmarkerFlash();
+                    break;
+
+                case PACKET_TYPE.ELIMINATED:
+                    receiveEnemyEliminatedPacket();
+                    break;
+
+                case PACKET_TYPE.MAP_SYNC:
+                    // 상자 파괴 싱크 패킷 동기화 처리
+                    if(data.walls) {
+                        for(let i=0; i<data.walls.length; i++) {
+                            if(activeMap.walls[i]) activeMap.walls[i].hp = data.walls[i].hp;
+                        }
+                    }
+                    break;
+
+                case PACKET_TYPE.SPAWN_ITEM:
+                    items.push(new FieldItem(data.x, data.y, data.itemType, data.id));
+                    break;
+
+                case PACKET_TYPE.ITEM_COLLECT:
+                    items = items.filter(item => item.id !== data.id);
+                    break;
+            }
+        }
+
+        // ==========================================================================
+        // 실제 인게임 전환 처리 및 코어 게임 루프 엔진
+        // ==========================================================================
+        function hostTriggerStartGame() {
+            const mySpawn = activeMap.spawnHost;
+            myPlayer = new GamePlayer(mySpawn.x, mySpawn.y, true, 'host-id', gameState.nickname, gameState.myColorHead, gameState.myColorTorso, gameState.selectedWeaponType);
+            
+            const enemySpawn = activeMap.spawnClient;
+            enemyPlayer.x = enemySpawn.x;
+            enemyPlayer.y = enemySpawn.y;
+
+            sendNetworkPacket({ type: PACKET_TYPE.GAME_START });
+            startActualInGameSession();
+        }
+
+        function startActualInGameSession() {
+            gameState.mode = 'IN_GAME';
+            switchScreen('none'); // 모든 도화지 메뉴 숨김 처리
+            document.getElementById('hud').classList.add('active');
+            
+            // 캔버스 크기 브라우저 창크기 맞춤형 동적 변환화
             resizeCanvas();
             window.addEventListener('resize', resizeCanvas);
 
-            window.onkeydown = (e) => { G.keys[e.key.toLowerCase()] = true; };
-            window.onkeyup = (e) => { G.keys[e.key.toLowerCase()] = false; };
-            
-            G.canvas.onmousemove = (e) => {
-                const rect = G.canvas.getBoundingClientRect();
-                G.mouseX = e.clientX - rect.left;
-                G.mouseY = e.clientY - rect.top;
-            };
+            gameState.scores.host = 0;
+            gameState.scores.client = 0;
+            gameState.roundNumber = 1;
 
-            G.canvas.onmousedown = (e) => { if (e.button === 0) fireEquippedWeapon(); };
+            // 서브 아이템 호스트 단독 스폰 타이머 배치 스케줄링
+            if(gameState.isHost) {
+                setInterval(hostItemSpawnProcessor, 7000);
+            }
 
-            // 비밀 치트 어드민 버튼 리스너 연계
-            document.getElementById('secret-admin-trigger').onclick = (e) => {
-                e.stopPropagation();
-                const me = G.players[G.localId];
-                if(me) {
-                    me.hasNuke = true;
-                    me.hasRPG = false;
-                    UI.weaponPanel.className = "hud-panel weapon-nuke";
-                    UI.weaponText.innerText = "🚨 초강력 핵미사일 (ADMIN)";
-                    UI.triggerNotification("어드민 치트 활성화! 화면 전체를 멸살하는 핵미사일이 장전되었습니다!");
+            initializeRoundSequence();
+            requestAnimationFrame(coreGameTickLoop);
+        }
+
+        function hostItemSpawnProcessor() {
+            if (!gameState.isRoundActive) return;
+            if (items.length >= 3) return; // 전장 내 아이템 밀도 상한선 조절
+
+            // 랜덤 유효 좌표 연산
+            const rx = 200 + Math.random() * (activeMap.width - 400);
+            const ry = 200 + Math.random() * (activeMap.height - 400);
+            const itType = Math.random() > 0.5 ? 'HEALTH' : 'AMMO';
+            const itId = Math.random().toString(36).substr(2, 5);
+
+            items.push(new FieldItem(rx, ry, itType, itId));
+            sendNetworkPacket({
+                type: PACKET_TYPE.SPAWN_ITEM,
+                x: rx, y: ry, itemType: itType, id: itId
+            });
+        }
+
+        let lastTimestamp = 0;
+        function coreGameTickLoop(timestamp) {
+            if (gameState.mode !== 'IN_GAME') return;
+            if (!lastTimestamp) lastTimestamp = timestamp;
+            const dt = (timestamp - lastTimestamp) / 16.666; // 가변 변위 프레임 스케일 팩터
+            lastTimestamp = timestamp;
+
+            // 1. 엔티티 물리 상태 업데이트 처리부
+            if (myPlayer) {
+                myPlayer.update(dt);
+                // 실시간 위치 전송 동기화
+                sendNetworkPacket({
+                    type: PACKET_TYPE.PLAYER_SYNC,
+                    x: myPlayer.x, y: myPlayer.y,
+                    angle: myPlayer.angle,
+                    isDashing: myPlayer.isDashing
+                });
+            }
+            if (enemyPlayer) enemyPlayer.update(dt);
+
+            // 2. 투사체 탄환 및 이펙트 연산 필터링 루프
+            bullets = bullets.filter(b => b.update());
+            particles = particles.filter(p => p.update());
+            items = items.filter(it => it.update());
+
+            // 3. 카메라 추적 시스템 연산 보간화 (LERP 기법)
+            if (myPlayer) {
+                camera.targetX = myPlayer.x - canvas.width / 2;
+                camera.targetY = myPlayer.y - canvas.height / 2;
+                
+                // 전장 맵 바운더리 밖 탈출 예방 클램핑 연산
+                camera.targetX = Math.max(0, Math.min(activeMap.width - canvas.width, camera.targetX));
+                camera.targetY = Math.max(0, Math.min(activeMap.height - canvas.height, camera.targetY));
+
+                camera.x += (camera.targetX - camera.x) * 0.1;
+                camera.y += (camera.targetY - camera.y) * 0.1;
+            }
+
+            // 스크린 셰이크 리코일 가우스 감쇠 감가 연산
+            if (camera.shake > 0) {
+                camera.shake -= 0.5;
+            }
+
+            // 실시간 뷰포트 캔버스 그리기 드로잉 파트 이행
+            renderGameScene();
+
+            requestAnimationFrame(coreGameTickLoop);
+        }
+
+        function renderGameScene() {
+            ctx.clearRect(0, 0, canvas.width, canvas.height);
+
+            ctx.save();
+            // 스크린 셰이크 임의 전단 변위 매트릭스 변조 적용
+            let shakeX = (Math.random() - 0.5) * camera.shake;
+            let shakeY = (Math.random() - 0.5) * camera.shake;
+            ctx.translate(-camera.x + shakeX, -camera.y + shakeY);
+
+            // [레이어 1] 아레나 바닥 격자 그리드 그리기 파트
+            ctx.fillStyle = '#1e222b';
+            ctx.fillRect(0, 0, activeMap.width, activeMap.height);
+
+            ctx.strokeStyle = '#2c323f';
+            ctx.lineWidth = 1;
+            const gridSpacing = 50;
+            ctx.beginPath();
+            for (let x = 0; x < activeMap.width; x += gridSpacing) {
+                ctx.moveTo(x, 0); ctx.lineTo(x, activeMap.height);
+            }
+            for (let y = 0; y < activeMap.height; y += gridSpacing) {
+                ctx.moveTo(0, y); ctx.lineTo(activeMap.width, y);
+            }
+            ctx.stroke();
+
+            // [레이어 2] 필드 스폰 아이템 렌더링
+            items.forEach(it => it.draw());
+
+            // [레이어 3] 구조 장벽 및 엄폐 벽면 그리기 파트
+            activeMap.walls.forEach(wall => {
+                if (wall.type === 'bush') {
+                    ctx.fillStyle = '#10ac84';
+                    ctx.fillRect(wall.x, wall.y, wall.w, wall.h);
+                    // 수풀 테두리 디자인 데코레이션
+                    ctx.strokeStyle = '#1dd1a1';
+                    ctx.lineWidth = 2;
+                    ctx.strokeRect(wall.x, wall.y, wall.w, wall.h);
+                } else if (wall.type === 'crate') {
+                    if(wall.hp <= 0) return; // 파괴된 경우 패스
+                    ctx.fillStyle = '#cd84f1';
+                    ctx.fillRect(wall.x, wall.y, wall.w, wall.h);
+                    ctx.strokeStyle = '#c56cf0';
+                    ctx.lineWidth = 3;
+                    ctx.strokeRect(wall.x, wall.y, wall.w, wall.h);
+                    // 상자 내부 X 교차선 표현
+                    ctx.beginPath();
+                    ctx.moveTo(wall.x, wall.y); ctx.lineTo(wall.x+wall.w, wall.y+wall.h);
+                    ctx.moveTo(wall.x+wall.w, wall.y); ctx.lineTo(wall.x, wall.y+wall.h);
+                    ctx.stroke();
+                } else if(wall.type && wall.type.startsWith('container')) {
+                    ctx.fillStyle = wall.type.includes('red') ? '#ff4d4d' : '#4d94ff';
+                    ctx.fillRect(wall.x, wall.y, wall.w, wall.h);
+                    ctx.strokeStyle = '#ffffff';
+                    ctx.lineWidth = 2;
+                    ctx.strokeRect(wall.x, wall.y, wall.w, wall.h);
+                } else {
+                    // 기본 솔리드 외곽벽 장벽 디자인
+                    ctx.fillStyle = '#3a3f50';
+                    ctx.fillRect(wall.x, wall.y, wall.w, wall.h);
+                    ctx.strokeStyle = '#2f3542';
+                    ctx.lineWidth = 4;
+                    ctx.strokeRect(wall.x, wall.y, wall.w, wall.h);
                 }
-            };
+            });
 
-            requestAnimationFrame(updateFrame);
+            // [레이어 4] 투사체 탄환 및 파티클 렌더링
+            bullets.forEach(b => b.draw());
+            particles.forEach(p => p.draw());
+
+            // [레이어 5] 플레이어 캐릭터 렌더링 파트
+            if (enemyPlayer) enemyPlayer.draw();
+            if (myPlayer) myPlayer.draw();
+
+            ctx.restore();
+
+            // [레이어 6] 스크린 고정 UI 레이아웃 미니맵 그리기 파트
+            renderTacticalMinimap();
+        }
+
+        function renderTacticalMinimap() {
+            const mmSize = 160;
+            const mmMargin = 20;
+            const mmX = canvas.width - mmSize - mmMargin;
+            const mmY = mmMargin + 100; // 킬피드 하단에 배치 안정화
+
+            ctx.save();
+            ctx.fillStyle = 'rgba(10, 11, 16, 0.8)';
+            ctx.strokeStyle = 'var(--border-color)';
+            ctx.lineWidth = 2;
+            ctx.fillRect(mmX, mmY, mmSize, mmSize);
+            ctx.strokeRect(mmX, mmY, mmSize, mmSize);
+
+            // 미니맵 마스크 스케일 맵핑 팩터 연산
+            const scaleX = mmSize / activeMap.width;
+            const scaleY = mmSize / activeMap.height;
+
+            // 벽 구조물 축소 투영
+            activeMap.walls.forEach(w => {
+                if(w.type === 'bush') ctx.fillStyle = 'rgba(16,172,132,0.5)';
+                else if(w.type === 'crate' && w.hp <= 0) return;
+                else ctx.fillStyle = '#57606f';
+                ctx.fillRect(mmX + w.x*scaleX, mmY + w.y*scaleY, w.w*scaleX, w.h*scaleY);
+            });
+
+            // 플레이어 포인트 투영
+            if (enemyPlayer) {
+                ctx.fillStyle = '#ff4757';
+                ctx.beginPath();
+                ctx.arc(mmX + enemyPlayer.x*scaleX, mmY + enemyPlayer.y*scaleY, 4, 0, Math.PI*2);
+                ctx.fill();
+            }
+            if (myPlayer) {
+                ctx.fillStyle = '#1e90ff';
+                ctx.beginPath();
+                ctx.arc(mmX + myPlayer.x*scaleX, mmY + myPlayer.y*scaleY, 4, 0, Math.PI*2);
+                ctx.fill();
+            }
+
+            ctx.restore();
+        }
+
+        // ==========================================================================
+        // UI 오버레이 인터페이스 동적 제어 컴포넌트 유틸리티들
+        // ==========================================================================
+        function switchScreen(screenId) {
+            const screens = ['screen-main', 'screen-host', 'screen-client', 'screen-stats'];
+            screens.forEach(id => {
+                const el = document.getElementById(id);
+                if (id === screenId) el.classList.remove('hidden');
+                else el.classList.add('hidden');
+            });
+        }
+
+        function updateHudData() {
+            if (!myPlayer) return;
+
+            // 체력 수치 동기화 바 연산
+            document.getElementById('hud-hp-val').innerText = `${myPlayer.hp} / ${myPlayer.maxHp}`;
+            document.getElementById('hud-hp-bar').style.width = `${(myPlayer.hp / myPlayer.maxHp) * 100}%`;
+
+            // 스태미나 동기화 바 연산
+            document.getElementById('hud-stamina-val').innerText = `${Math.floor(myPlayer.stamina)}%`;
+            document.getElementById('hud-stamina-bar').style.width = `${myPlayer.stamina}%`;
+
+            // 탄환 아모 연산 카운트
+            document.getElementById('hud-ammo-current').innerText = myPlayer.ammo;
+            document.getElementById('hud-ammo-max').innerText = `/ ${myPlayer.maxAmmo}`;
+            document.getElementById('hud-weapon-name').innerText = WEAPONS[myPlayer.weaponType].name;
+
+            // 스코어 보드 매칭 텍스트 로드
+            if(gameState.isHost) {
+                document.getElementById('hud-my-name').innerText = gameState.nickname;
+                document.getElementById('hud-my-score').innerText = gameState.scores.host;
+                document.getElementById('hud-enemy-name').innerText = enemyPlayer ? enemyPlayer.name : "Client";
+                document.getElementById('hud-enemy-score').innerText = gameState.scores.client;
+            } else {
+                document.getElementById('hud-my-name').innerText = gameState.nickname;
+                document.getElementById('hud-my-score').innerText = gameState.scores.client;
+                document.getElementById('hud-enemy-name').innerText = enemyPlayer ? enemyPlayer.name : "Host";
+                document.getElementById('hud-enemy-score').innerText = gameState.scores.host;
+            }
+
+            document.getElementById('hud-round-num').innerText = `ROUND ${gameState.roundNumber}`;
+        }
+
+        function showToastNotification(text) {
+            const center = document.getElementById('notification-center');
+            const toast = document.createElement('div');
+            toast.className = 'toast-msg';
+            toast.innerText = text;
+            center.appendChild(toast);
+            setTimeout(() => { toast.remove(); }, 2500);
+        }
+
+        function pushKillfeedLog(killer, eliminated, weaponType) {
+            const feed = document.getElementById('killfeed');
+            const item = document.createElement('div');
+            item.className = 'killfeed-item';
+            
+            const wName = WEAPONS[weaponType] ? WEAPONS[weaponType].name : "Weapon";
+            item.innerHTML = `<span style="color:#70a1ff;font-weight:bold;">${killer}</span> 
+                              <span style="color:#ced6e0;font-size:0.75rem;margin:0 5px;">[${wName}]</span> 
+                              <span style="color:#ff6b81;font-weight:bold;">${eliminated}</span>`;
+            
+            feed.appendChild(item);
+            setTimeout(() => { item.remove(); }, 4000);
+        }
+
+        function triggerHitmarkerFlash() {
+            const hm = document.getElementById('hitmarker-img');
+            hm.style.opacity = '1';
+            setTimeout(() => { hm.style.opacity = '0'; }, 80);
         }
 
         function resizeCanvas() {
-            if (G.canvas) {
-                G.canvas.width = window.innerWidth;
-                G.canvas.height = window.innerHeight;
-            }
+            canvas.width = window.innerWidth;
+            canvas.height = window.innerHeight;
         }
 
-        // --- WEAPON LOGIC SYSTEM (RPG & NUKE) ---
-        function fireEquippedWeapon() {
-            const me = G.players[G.localId];
-            if (!me || G.gameState !== 'PLAYING') return;
-
-            const worldMouseX = G.mouseX + G.camera.x;
-            const worldMouseY = G.mouseY + G.camera.y;
-
-            if (me.hasRPG || me.hasNuke) {
-                const dx = worldMouseX - me.x;
-                const dy = worldMouseY - me.y;
-                const dist = Math.hypot(dx, dy);
-                if (dist === 0) return;
-
-                const bulletSpeed = me.hasNuke ? 10 : 15; 
-                const projData = {
-                    type: 'FIRE_PROJECTILE',
-                    x: me.x, y: me.y,
-                    vx: (dx / dist) * bulletSpeed,
-                    vy: (dy / dist) * bulletSpeed,
-                    owner: G.localId,
-                    isNuke: me.hasNuke
-                };
-                
-                G.projectiles.push({
-                    x: projData.x, y: projData.y, vx: projData.vx, vy: projData.vy, owner: projData.owner, isNuke: projData.isNuke
-                });
-                sendData(projData);
-            } else {
-                // 맨손 타격 검정
-                const mx = Math.floor(worldMouseX / CELL_SIZE);
-                const my = Math.floor(worldMouseY / CELL_SIZE);
-
-                if (mx >= 0 && mx < G.gridSize && my >= 0 && my < G.gridSize) {
-                    if (G.maze[by = my][bx = mx] === CELL_BOX) {
-                        const distance = Math.hypot(me.x - (mx * CELL_SIZE + CELL_SIZE/2), me.y - (my * CELL_SIZE + CELL_SIZE/2));
-                        if (distance < CELL_SIZE * 1.8) {
-                            G.maze[my][mx] = CELL_PATH;
-                            me.hasRPG = true;
-                            UI.weaponPanel.className = "hud-panel weapon-rpg";
-                            UI.weaponText.innerText = "🚀 RPG-7 바주카 (무한)";
-                            
-                            createWallDestroyParticles(mx * CELL_SIZE + CELL_SIZE/2, my * CELL_SIZE + CELL_SIZE/2, '#eab308');
-                            UI.triggerNotification("상자를 부수고 무한 RPG-7을 획득했습니다!");
-
-                            sendData({ type: 'BOX_DESTROYED', mx: mx, my: my, playerId: G.localId });
-                        }
-                    }
-                }
-            }
-        }
-
-        // --- PHYSICAL ENGINE & INTERACTION DETECT ---
-        function movePlayerWithCollision(p, vx, vy) {
-            const radius = 14; 
-            let nextX = p.x + vx;
-            let nextY = p.y + vy;
-
-            if (checkMapObstacleCollision(nextX, p.y, radius)) {
-                if (vx > 0) nextX = Math.floor((nextX + radius) / CELL_SIZE) * CELL_SIZE - radius - 0.1;
-                else if (vx < 0) nextX = Math.floor((nextX - radius) / CELL_SIZE) * CELL_SIZE + CELL_SIZE + radius + 0.1;
-            }
-            p.x = nextX;
-
-            if (checkMapObstacleCollision(p.x, nextY, radius)) {
-                if (vy > 0) nextY = Math.floor((nextY + radius) / CELL_SIZE) * CELL_SIZE - radius - 0.1;
-                else if (vy < 0) nextY = Math.floor((nextY - radius) / CELL_SIZE) * CELL_SIZE + CELL_SIZE + radius + 0.1;
-            }
-            p.y = nextY;
-        }
-
-        function checkMapObstacleCollision(x, y, r) {
-            const checkPoints = [
-                {x: x - r, y: y - r}, {x: x + r, y: y - r},
-                {x: x - r, y: y + r}, {x: x + r, y: y + r}
-            ];
-            for (let i = 0; i < checkPoints.length; i++) {
-                const mx = Math.floor(checkPoints[i].x / CELL_SIZE);
-                const my = Math.floor(checkPoints[i].y / CELL_SIZE);
-                if (mx < 0 || mx >= G.gridSize || my < 0 || my >= G.gridSize) return true;
-                
-                const tile = G.maze[my][mx];
-                if (tile === CELL_WALL || tile === CELL_BOX) return true;
-            }
-            return false;
-        }
-
-        function updateProjectiles() {
-            for (let i = G.projectiles.length - 1; i >= 0; i--) {
-                const p = G.projectiles[i];
-                p.x += p.vx;
-                p.y += p.vy;
-
-                const mx = Math.floor(p.x / CELL_SIZE);
-                const my = Math.floor(p.y / CELL_SIZE);
-
-                if (mx < 0 || mx >= G.gridSize || my < 0 || my >= G.gridSize) {
-                    G.projectiles.splice(i, 1);
-                    continue;
-                }
-
-                // 벽 충돌 시 폭발 발동
-                if (G.maze[my][mx] === CELL_WALL || G.maze[my][mx] === CELL_BOX) {
-                    triggerExplosionImpact(mx, my, p.isNuke);
-                    G.projectiles.splice(i, 1);
-                    continue;
-                }
-
-                // 괴물 피격 체크
-                for (let m = G.monsters.length - 1; m >= 0; m--) {
-                    let mon = G.monsters[m];
-                    if(Math.hypot(p.x - mon.x, p.y - mon.y) < 22) {
-                        let damage = p.isNuke ? 9999 : 35; 
-                        mon.hp -= damage;
-                        
-                        sendData({ type: 'MONSTER_HIT_EXPLOSION', mx: mon.x, my: mon.y });
-
-                        if(mon.hp <= 0) {
-                            createWallDestroyParticles(mon.x, mon.y, '#ef4444');
-                            G.monsters.splice(m, 1);
-                        }
-                        
-                        triggerExplosionImpact(mx, my, p.isNuke);
-                        G.projectiles.splice(i, 1);
-                        break;
-                    }
-                }
-            }
-        }
-
-        // --- 무기 타입별 폭발 스케일 분기 연산 ---
-        function triggerExplosionImpact(targetMx, targetMy, isNuke) {
-            const destroyedTiles = [];
+        function exitGameToMainMenu() {
+            gameState.mode = 'MENU';
+            document.getElementById('hud').classList.remove('active');
+            switchScreen('screen-main');
             
-            // [요청 반영] RPG 폭발 반경 축소(1칸 이내, 3x3 범위) / 핵폭탄은 12칸 대범위 유지
-            const radiusRange = isNuke ? 12 : 1; 
-            const particleColor = isNuke ? '#a855f7' : '#f97316';
-
-            for (let dy = -radiusRange; dy <= radiusRange; dy++) {
-                for (let dx = -radiusRange; dx <= radiusRange; dx++) {
-                    const cx = targetMx + dx;
-                    const cy = targetMy + dy;
-
-                    if (cx > 0 && cx < G.gridSize - 1 && cy > 0 && cy < G.gridSize - 1) {
-                        if(isNuke && Math.hypot(dx, dy) > radiusRange) continue;
-
-                        const block = G.maze[cy][cx];
-                        if (block === CELL_WALL || block === CELL_BOX) {
-                            G.maze[cy][cx] = CELL_PATH;
-                            destroyedTiles.push({ x: cx, y: cy });
-                            createWallDestroyParticles(cx * CELL_SIZE + CELL_SIZE/2, cy * CELL_SIZE + CELL_SIZE/2, '#475569');
-                        }
-                    }
-                }
-            }
-
-            // 전술 핵폭탄 범위 내 괴물 멸살 연산
-            if (isNuke) {
-                const targetWorldX = targetMx * CELL_SIZE + CELL_SIZE/2;
-                const targetWorldY = targetMy * CELL_SIZE + CELL_SIZE/2;
-                for (let m = G.monsters.length - 1; m >= 0; m--) {
-                    let mon = G.monsters[m];
-                    if (Math.hypot(mon.x - targetWorldX, mon.y - targetWorldY) < radiusRange * CELL_SIZE) {
-                        G.monsters.splice(m, 1);
-                    }
-                }
-            }
-
-            // 폭발 비주얼 파티클 연산
-            const loopMax = isNuke ? 90 : 12;
-            for (let k = 0; k < loopMax; k++) {
-                G.particles.push({
-                    x: targetMx * CELL_SIZE + CELL_SIZE/2,
-                    y: targetMy * CELL_SIZE + CELL_SIZE/2,
-                    vx: (Math.random() - 0.5) * (isNuke ? 26 : 8),
-                    vy: (Math.random() - 0.5) * (isNuke ? 26 : 8),
-                    radius: Math.random() * (isNuke ? 15 : 4) + 3,
-                    alpha: 1,
-                    decay: Math.random() * 0.03 + 0.01,
-                    color: particleColor
-                });
-            }
-
-            sendData({ type: 'MAZE_BREAK', tiles: destroyedTiles });
+            // 네트워킹 리소스 인스턴스 정합성 초기화 해제
+            if (conn) { conn.close(); conn = null; }
+            if (peer) { peer.destroy(); peer = null; }
+            
+            myPlayer = null;
+            enemyPlayer = null;
+            bullets = [];
+            particles = [];
+            items = [];
         }
 
-        // --- 호스트 전용 최적화 추격 인공지능 괴물 시뮬레이터 ---
-        function updateMonstersAI() {
-            if (!G.isHost || G.monsters.length === 0) return;
+        // ==========================================================================
+        // 이벤트를 다이렉트로 감지 처리하는 바인딩 리스너 셋업
+        // ==========================================================================
+        window.addEventListener('keydown', (e) => {
+            keys[e.key] = true;
+            // 장전 트리거 키 검사
+            if ((e.key === 'r' || e.key === 'R') && myPlayer) {
+                myPlayer.startReload();
+            }
+        });
 
-            G.monsters.forEach(mon => {
-                let closestPlayer = null;
-                let minDist = 999999;
+        window.addEventListener('keyup', (e) => {
+            keys[e.key] = false;
+        });
 
-                Object.keys(G.players).forEach(id => {
-                    let p = G.players[id];
-                    let dist = Math.hypot(p.x - mon.x, p.y - mon.y);
-                    if(dist < minDist) {
-                        minDist = dist;
-                        closestPlayer = p;
-                    }
-                });
+        window.addEventListener('mousemove', (e) => {
+            mouse.x = e.clientX;
+            mouse.y = e.clientY;
+            // 가상 카메라 월드 좌표 변환 맵핑
+            mouse.worldX = mouse.x + camera.x;
+            mouse.worldY = mouse.y + camera.y;
+        });
 
-                if (closestPlayer) {
-                    let dx = closestPlayer.x - mon.x;
-                    let dy = closestPlayer.y - mon.y;
-                    let angle = Math.atan2(dy, dx);
-                    
-                    let vx = Math.cos(angle) * mon.speed;
-                    let vy = Math.sin(angle) * mon.speed;
+        window.addEventListener('mousedown', (e) => {
+            if (gameState.mode === 'IN_GAME') {
+                mouse.isDown = true;
+                initAudio(); // 브라우저 제약 조건 방어용 첫 클릭 오디오 해제 트릭
+            }
+        });
 
-                    let nextX = mon.x + vx;
-                    let nextY = mon.y + vy;
-                    let mRad = 15;
+        window.addEventListener('mouseup', () => {
+            mouse.isDown = false;
+        });
 
-                    if (!checkMapObstacleCollision(nextX, mon.y, mRad)) mon.x = nextX;
-                    if (!checkMapObstacleCollision(mon.x, nextY, mRad)) mon.y = nextY;
+        // 클라이언트 전용 초대 코드 인풋박스 자동 포커싱 넘기기 매크로 기능
+        const codeInputs = [
+            document.getElementById('code-1'),
+            document.getElementById('code-2'),
+            document.getElementById('code-3'),
+            document.getElementById('code-4')
+        ];
+        codeInputs.forEach((input, index) => {
+            input.addEventListener('input', (e) => {
+                if (e.target.value.length >= 1 && index < 3) {
+                    codeInputs[index + 1].focus();
                 }
             });
-
-            sendData({
-                type: 'MONSTER_SYNC_FROM_HOST',
-                monsters: G.monsters
-            });
-        }
-
-        function createWallDestroyParticles(px, py, color) {
-            for (let i = 0; i < 5; i++) {
-                G.particles.push({
-                    x: px, y: py,
-                    vx: (Math.random() - 0.5) * 5, vy: (Math.random() - 0.5) * 5,
-                    radius: Math.random() * 3 + 2, alpha: 1, decay: Math.random() * 0.06 + 0.04, color: color
-                });
-            }
-        }
-
-        function updateParticles() {
-            for (let i = G.particles.length - 1; i >= 0; i--) {
-                const p = G.particles[i];
-                p.x += p.vx; p.y += p.vy; p.alpha -= p.decay;
-                if (p.alpha <= 0) G.particles.splice(i, 1);
-            }
-        }
-
-        // --- REALTIME CANVAS RENDERING & GAME LOOP ---
-        function updateFrame() {
-            if (G.gameState !== 'PLAYING') return;
-
-            const me = G.players[G.localId];
-            if (me) {
-                let pSpeed = 4;
-                let vx = 0; let vy = 0;
-
-                if (G.keys['w'] || G.keys['arrowup']) vy = -pSpeed;
-                if (G.keys['s'] || G.keys['arrowdown']) vy = pSpeed;
-                if (G.keys['a'] || G.keys['arrowleft']) vx = -pSpeed;
-                if (G.keys['d'] || G.keys['arrowright']) vx = pSpeed;
-
-                if (vx !== 0 && vy !== 0) { vx *= 0.7071; vy *= 0.7071; }
-                if (vx !== 0 || vy !== 0) movePlayerWithCollision(me, vx, vy);
-
-                me.angle = Math.atan2((G.mouseY + G.camera.y) - me.y, (G.mouseX + G.camera.x) - me.x);
-
-                sendData({
-                    type: 'SYNC_INPUT', id: G.localId, x: me.x, y: me.y, angle: me.angle, hasRPG: me.hasRPG, hasNuke: me.hasNuke
-                });
-
-                // 괴물 접촉 시 스타트 구역 리스폰 패널티 연산
-                G.monsters.forEach(mon => {
-                    if(Math.hypot(me.x - mon.x, me.y - mon.y) < 25) {
-                        me.x = CELL_SIZE * 1.5;
-                        me.y = CELL_SIZE * 1.5; 
-                        UI.triggerNotification("☠️ 괴물에게 잡혔습니다! 입구로 패널티 소환됩니다.");
-                    }
-                });
-
-                // 탈출 지점 포탈 충돌 연산
-                const cx = Math.floor(me.x / CELL_SIZE);
-                const cy = Math.floor(me.y / CELL_SIZE);
-                if (G.maze[cy] && G.maze[cy][cx] === CELL_EXIT) {
-                    if (G.currentLevel < G.maxLevel) {
-                        G.currentLevel++;
-                        G.gridSize = calculateGridSize(G.currentLevel);
-                        generateAdvancedMaze();
-                        
-                        Object.keys(G.players).forEach(id => {
-                            G.players[id].x = CELL_SIZE * 1.5;
-                            G.players[id].y = CELL_SIZE * 1.5;
-                        });
-                        G.projectiles = [];
-
-                        document.getElementById('hud-level').innerText = `LV. ${G.currentLevel} / ${G.maxLevel}`;
-                        UI.triggerNotification(`STAGE ${G.currentLevel} 진입! 미로 규모가 상향 확장됩니다.`);
-                        
-                        sendData({
-                            type: 'LEVEL_UP_SYNC', currentLevel: G.currentLevel, gridSize: G.gridSize, maze: G.maze, monsters: G.monsters
-                        });
-                    } else {
-                        G.gameState = 'END';
-                        UI.gameContainer.style.display = 'none';
-                        UI.resultScreen.style.display = 'flex';
-                        sendData({ type: 'GAME_CLEAR' });
-                    }
+            input.addEventListener('keydown', (e) => {
+                if (e.key === 'Backspace' && e.target.value.length === 0 && index > 0) {
+                    codeInputs[index - 1].focus();
                 }
-            }
-
-            if(G.isHost) updateMonstersAI();
-
-            updateProjectiles();
-            updateParticles();
-
-            if (me) {
-                G.camera.x = me.x - G.canvas.width / 2;
-                G.camera.y = me.y - G.canvas.height / 2;
-            }
-
-            G.ctx.fillStyle = '#020617';
-            G.ctx.fillRect(0, 0, G.canvas.width, G.canvas.height);
-
-            G.ctx.save();
-            G.ctx.translate(-G.camera.x, -G.camera.y);
-
-            // 고성능 뷰포트 컬링 최적화 렌더링 루프 가동
-            const startX = Math.max(0, Math.floor(G.camera.x / CELL_SIZE));
-            const endX = Math.min(G.gridSize, Math.ceil((G.camera.x + G.canvas.width) / CELL_SIZE));
-            const startY = Math.max(0, Math.floor(G.camera.y / CELL_SIZE));
-            const endY = Math.min(G.gridSize, Math.ceil((G.camera.y + G.canvas.height) / CELL_SIZE));
-
-            for (let y = startY; y < endY; y++) {
-                for (let x = startX; x < endX; x++) {
-                    const blockType = G.maze[y][x];
-                    const px = x * CELL_SIZE; const py = y * CELL_SIZE;
-
-                    if (blockType === CELL_WALL) {
-                        G.ctx.fillStyle = '#1e293b'; G.ctx.fillRect(px, py, CELL_SIZE, CELL_SIZE);
-                        G.ctx.strokeStyle = '#334155'; G.ctx.lineWidth = 1; G.ctx.strokeRect(px, py, CELL_SIZE, CELL_SIZE);
-                        G.ctx.fillStyle = '#0f172a'; G.ctx.fillRect(px + 4, py + 4, CELL_SIZE - 8, CELL_SIZE - 8);
-                    } else if (blockType === CELL_BOX) {
-                        G.ctx.fillStyle = '#b45309'; G.ctx.fillRect(px + 4, py + 4, CELL_SIZE - 8, CELL_SIZE - 8);
-                        G.ctx.strokeStyle = '#eab308'; G.ctx.lineWidth = 2;
-                        G.ctx.beginPath(); G.ctx.moveTo(px+8, py+8); G.ctx.lineTo(px+CELL_SIZE-8, py+CELL_SIZE-8);
-                        G.ctx.moveTo(px+CELL_SIZE-8, py+8); G.ctx.lineTo(px+8, py+CELL_SIZE-8); G.ctx.stroke();
-                    } else if (blockType === CELL_EXIT) {
-                        G.ctx.fillStyle = 'rgba(34, 197, 94, 0.2)'; G.ctx.fillRect(px, py, CELL_SIZE, CELL_SIZE);
-                        G.ctx.strokeStyle = 'var(--success-color)'; G.ctx.lineWidth = 4; G.ctx.strokeRect(px+2, py+2, CELL_SIZE-4, CELL_SIZE-4);
-                        G.ctx.fillStyle = 'var(--success-color)'; G.ctx.font = 'bold 11px Arial'; G.ctx.textAlign = 'center';
-                        G.ctx.fillText(G.currentLevel === 10 ? "PORTAL" : "NEXT", px + CELL_SIZE/2, py + CELL_SIZE/2 + 4);
-                    }
-                }
-            }
-
-            // 실시간 촉수 눈알 괴물 그래픽 드로잉
-            G.monsters.forEach(mon => {
-                G.ctx.save();
-                G.ctx.translate(mon.x, mon.y);
-
-                G.ctx.fillStyle = '#ef4444';
-                G.ctx.beginPath();
-                G.ctx.arc(0, 0, 18, 0, Math.PI*2);
-                G.ctx.fill();
-
-                // 악성 눈동자 렌더링
-                G.ctx.fillStyle = '#fff';
-                G.ctx.beginPath(); G.ctx.arc(3, 0, 7, 0, Math.PI*2); G.ctx.fill();
-                G.ctx.fillStyle = '#7c3aed';
-                G.ctx.beginPath(); G.ctx.arc(5, 0, 3, 0, Math.PI*2); G.ctx.fill();
-
-                G.ctx.restore();
-                
-                // 괴물 체력 게이지 바 출력
-                G.ctx.fillStyle = 'rgba(0,0,0,0.6)';
-                G.ctx.fillRect(mon.x - 20, mon.y - 28, 40, 4);
-                G.ctx.fillStyle = 'var(--danger-color)';
-                G.ctx.fillRect(mon.x - 20, mon.y - 28, (mon.hp / mon.maxHp) * 40, 4);
-            });
-
-            // 투사체 처리
-            G.projectiles.forEach(p => {
-                G.ctx.fillStyle = p.isNuke ? '#c084fc' : '#ef4444';
-                G.ctx.beginPath();
-                G.ctx.arc(p.x, p.y, p.isNuke ? 10 : 5, 0, Math.PI * 2);
-                G.ctx.fill();
-            });
-
-            // 폭발 파티클 루프
-            G.particles.forEach(p => {
-                G.ctx.save(); G.ctx.globalAlpha = p.alpha; G.ctx.fillStyle = p.color;
-                G.ctx.beginPath(); G.ctx.arc(p.x, p.y, p.radius, 0, Math.PI * 2); G.ctx.fill();
-                G.ctx.restore();
-            });
-
-            // 동기화 멀티플레이어 유저 그래픽 구현
-            Object.keys(G.players).forEach(id => {
-                const player = G.players[id];
-                G.ctx.save(); G.ctx.translate(player.x, player.y); G.ctx.rotate(player.angle);
-
-                G.ctx.fillStyle = player.isHost ? 'var(--accent-color)' : '#ec4899';
-                G.ctx.beginPath(); G.ctx.arc(0, 0, 16, 0, Math.PI * 2); G.ctx.fill();
-                G.ctx.strokeStyle = '#fff'; G.ctx.lineWidth = 2; G.ctx.stroke();
-
-                if (player.hasNuke) {
-                    G.ctx.fillStyle = '#c084fc'; G.ctx.fillRect(4, -6, 26, 12);
-                    G.ctx.fillStyle = '#eab308'; G.ctx.fillRect(24, -8, 6, 16);
-                } else if (player.hasRPG) {
-                    G.ctx.fillStyle = '#eab308'; G.ctx.fillRect(4, -4, 22, 8);
-                }
-
-                G.ctx.restore();
-                G.ctx.fillStyle = '#fff'; G.ctx.font = '12px Arial'; G.ctx.textAlign = 'center';
-                G.ctx.fillText(player.name, player.x, player.y - 24);
-            });
-
-            G.ctx.restore();
-            requestAnimationFrame(updateFrame);
-        }
-
-        // --- INITIALIZATION ENTRY POINT ---
-        window.addEventListener('DOMContentLoaded', () => {
-            document.getElementById('btn-create-mode').addEventListener('click', () => {
-                initNetwork(true, generateRoomCode());
-            });
-
-            document.getElementById('btn-join-mode').addEventListener('click', () => {
-                const codeInput = document.getElementById('room-code-input').value.trim().toUpperCase();
-                if (codeInput.length === 4) initNetwork(false, codeInput);
-                else alert("올바른 4자리 코드를 입력하세요.");
-            });
-
-            document.getElementById('btn-leave-lobby').addEventListener('click', () => { window.location.reload(); });
-
-            document.getElementById('btn-start-game').addEventListener('click', () => {
-                if (!G.isHost) return;
-                G.gameState = 'PLAYING';
-                sendData({
-                    type: 'START_GAME', maze: G.maze, players: G.players, currentLevel: G.currentLevel, gridSize: G.gridSize, monsters: G.monsters
-                });
-                startGameLoop();
             });
         });
+
+        // DOM 제어 액션 이벤트 연동 링크 바인딩
+        document.getElementById('btn-create-match').addEventListener('click', createHostMatchRoom);
+        document.getElementById('btn-join-match').addEventListener('click', () => switchScreen('screen-client'));
+        document.getElementById('btn-back-from-host').addEventListener('click', exitGameToMainMenu);
+        document.getElementById('btn-back-from-client').addEventListener('click', exitGameToMainMenu);
+        document.getElementById('btn-connect-peer').addEventListener('click', joinClientMatchRoom);
+        document.getElementById('btn-start-game').addEventListener('click', hostTriggerStartGame);
+        
+        document.getElementById('btn-open-stats').addEventListener('click', () => {
+            loadStats();
+            document.getElementById('stat-matches').innerText = playerStats.matches;
+            document.getElementById('stat-kills').innerText = playerStats.kills;
+            document.getElementById('stat-deaths').innerText = playerStats.deaths;
+            
+            const kd = playerStats.deaths === 0 ? playerStats.kills : (playerStats.kills / playerStats.deaths);
+            document.getElementById('stat-kd').innerText = kd.toFixed(2);
+            document.getElementById('stat-shots').innerText = playerStats.shots;
+            document.getElementById('stat-hits').innerText = playerStats.hits;
+            
+            const acc = playerStats.shots === 0 ? 0 : Math.round((playerStats.hits / playerStats.shots) * 100);
+            document.getElementById('stat-accuracy').innerText = acc + "%";
+            
+            switchScreen('screen-stats');
+        });
+        document.getElementById('btn-close-stats').addEventListener('click', () => switchScreen('screen-main'));
+
+        // 첫 페이지 로드 통계 로딩 세션 초기 작동
+        loadStats();
     </script>
 </body>
 </html>
